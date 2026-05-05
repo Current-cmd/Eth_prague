@@ -1,0 +1,107 @@
+### [Disclaimer] ###
+# IMPORTANT: Running the broker with these settings will likely result in your
+# broker not being able to lock or fulfill orders, and may even result in your
+# broker being slashed.
+#
+# We strongly recommend using the Boundless CLI's `boundless prover
+# generate-config` command to generate a broker.toml file that is tailored to
+# your specific setup.
+#
+# Additionally, refer to documentation:
+# https://docs.boundless.network/provers/broker#settings-in-brokertoml
+### [End] ###
+
+[market]
+# Minimum price per mega-cycle. Can be specified in USD or ETH.
+# If USD, it will be converted to the order's payment token (ETH) at runtime using the price oracle.
+# Plain numbers without asset suffix default to ETH for backward compatibility.
+#
+# Examples: "0.00001 USD", "0.00000001 ETH", "0.00000001"
+#
+# Orders are preflighted (https://docs.boundless.network/provers/terminology#preflight)
+# to determine the number of cycles required to prove the order. Based on this
+# cycle count, and the current price of the order, the broker computes the
+# current price per mega-cycle being offered for the order. This value is compared to the
+# `min_mcycle_price` to determine if the order should be locked.
+#
+# This price is also used for secondary fulfillment (lock-expired orders), where it is
+# converted to ZKC via the price oracle and discounted by the expected probability of
+# winning the proof race.
+min_mcycle_price = "0.00002 USD"
+
+# Per-requestor and per-proof-type min_mcycle_price overrides.
+#
+# Resolution priority: by_requestor_proof_type > by_proof_type > by_requestor > global default.
+# Changes take effect immediately when the broker reloads this file.
+#
+# Uncomment and populate any of the sections below to enable overrides:
+#
+# [market.pricing_overrides.by_requestor]
+# "0xAbC...123" = "0.0001 USD"
+#
+# [market.pricing_overrides.by_proof_type]
+# "0x12345678" = "0.0005 USD"
+#
+# [market.pricing_overrides.by_requestor_proof_type]
+# "0xAbC...123:0x12345678" = "0.001 USD"
+
+# Expected probability of winning the secondary fulfillment race, expressed as a percentage.
+# When an order's lock expires, multiple provers may race to fulfill it.
+# Scales the expected reward when evaluating profitability and priority.
+# Values below 100 discount the reward, 100 = no adjustment, values above 100 boost the reward
+# to aggressively prioritize secondary fulfillments.
+# Default: 50
+expected_probability_win_secondary_fulfillment = 50
+
+# Estimated peak performance of the proving cluster, in kHz.
+#
+# Used to estimate proving capacity and accept only as much work as your prover
+# cluster can handle. Estimates can be derived from benchmarking using the
+# Boundless CLI. For more information, see:
+# https://docs.beboundless.xyz/provers/broker#benchmarking-bento
+peak_prove_khz = 100
+
+# Requestor priority lists specify requestors that the broker should
+# prioritize for proving. Requestors on these lists are considered more likely
+# to request useful work with profitable pricing, and thus are prioritized over
+# requestors not on these lists.
+#
+# Priority requestors are prioritized when there is a surplus of demand, and skip 
+# various limits that are typically applied to all requestors:
+# 1. Their requests will be preflighted first.
+# 2. Their requests will be locked first (in situations where multiple orders
+#    exceed minimum lock pricing).
+# 3. Configuration for `max_mcycle_limit` and `max_file_size` will be skipped.
+priority_requestor_lists = [
+	"https://requestors.boundless.network/boundless-recommended-priority-list.standard.json",
+]
+
+# Maximum collateral amount that the broker will use to lock orders.
+# Can be specified in USD or ZKC.
+# Plain numbers default to ZKC for backward compatibility.
+# If USD, it will be converted to ZKC at runtime using the price oracle.
+#
+# Examples: "100 USD", "200 ZKC", "200"
+#
+# Requests that require a higher collateral amount than this will be skipped.
+max_collateral = "10 USD"
+
+# Maximum number of orders to concurrently preflight.
+#
+# Used to limit preflight tasks spawned to prevent overwhelming the system.
+# We recommend using the Boundless CLI's `boundless prover generate-config`
+# to help configure this value.
+#
+# Refer to the broker configuration documentation for more information:
+# https://docs.boundless.network/provers/broker#settings-in-brokertoml
+max_concurrent_preflights = 8
+
+# Number of times to retry failed HTTP fetches for request images/inputs.
+#
+# Retries are disabled by default. Uncomment to enable, for example:
+# max_fetch_retries = 2
+
+# Maximum number of concurrent proofs that can be processed at once.
+#
+# Used to limit proof tasks spawned to prevent overwhelming the system.
+max_concurrent_proofs = 1

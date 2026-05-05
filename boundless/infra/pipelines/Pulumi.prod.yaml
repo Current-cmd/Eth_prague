@@ -1,0 +1,29 @@
+config:
+  aws:region: us-west-2
+  pipelines:GITHUB_TOKEN:
+    secure: v1:7sm5+n3SWDLhTAKR:xOhHJSukijKJ5VQA/t+eI+SVhUsgXmfw0arSrKrTW1QLgWvsMhuAF6iznwh+KuKr5l1jKhNocpvCeY6j7y2gumarUohTy2qR942fT+TuuCCle7jid0lQhGd27vAs/v4+khqlrHrf3remSWHjsg==
+  pipelines:DOCKER_USER: boundlessautomation
+  pipelines:DOCKER_PAT:
+    secure: v1:UMOqTsMiIFPFAx/b:4RKzSkWjewfWGwAP+xLloOBRbwCTBSh+XuzixsacmS2myqh3K/YNwk5kfl1w8Fi1QshhUg==
+  pipelines:BOUNDLESS_ALERTS_SLACK_ID:
+    secure: v1:ZjeLYLyEYnxYpHMl:49WYja1GPBzkH7JdKV5UJyjv/Im7qxsStUpa
+  pipelines:WORKSPACE_SLACK_ID:
+    secure: v1:WCIxKMQodHB1/8dY:vn9J/+M+7r91/G+uYIFBC31Co740P6JoR4Md
+  pipelines:PAGERDUTY_INTEGRATION_URL:
+    secure: v1:SuGQcoGxlLA8piY9:L2zqgKR74YpdEVRykR4hNK2sx+yhRtlD7hQTwOOO67A/dhtvQii+lo/hOg7ZDRS6iM1doFR03MuX9thXHtLzl942npMXfa0US5daeHUhwDvZVqRLhGlbzUb0Y7CGmAUyYw==
+  pipelines:BOUNDLESS_ALERTS_STAGING_SLACK_ID:
+    secure: v1:iJPdXMnkpWW+PR4v:V81O9g4nIBNKLrRo9fCSUvWPV1ArT6Uera5i
+  pipelines:SSO_BASE_URL:
+    secure: v1:mp7Zj3Vr4nKxLLQN:Q3IdlOsOP/SGJr4ZMVyyKDf5p9PzvbvuiUUlpsxGdu7bVNycztiqWWvRKufGwi6zkOoeorW6azi896WAvLD5Kg==
+  pipelines:RUNBOOK_URL:
+    secure: v1:6oX3TRTzickOSMk9:JYDw6501xgI+VJmpeMWN3UgqofpVzsquL40NC4XTjYfged/idqzAKlp0QC5fS5Ae4SV9zkcHoFFCl54Y8h88PUDLeaCaSV/IxnGYc6NFH2jEX3PQfmDBx062bRj1ksdmki4=
+  pipelines:BOUNDLESS_ALERTS_STAGING_LAUNCH_SLACK_ID:
+    secure: v1:Evl3B4eQ0vnqgnJA:cNDdYWW9NpBwD2bo3xJ0EPF3o2bloObGRB1t
+  pipelines:BOUNDLESS_ALERTS_LAUNCH_SLACK_ID:
+    secure: v1:N6h3KGSlz8CZOYNZ:D6mqYa81RL9sOakgzSggXy6lD1BHtQOidu+U
+  aws:defaultTags:
+    tags:
+      Project: boundless
+      Environment: prod
+secretsprovider: awskms:///arn:aws:kms:us-west-2:968153779208:alias/pulumi-secrets-key
+encryptedkey: AQICAHhnm/1/W7/xeF2uxmXOGjFzOf6jjMX+KgbMb0K+LSCbsAFRXbSyr6AYSMcivVuIOKM1AAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQM99POLOpwmSAsUSA6AgEQgDtWlwiW1A4Ljv+YiqVnhqlhSZhL08n2udrkFcXJOak8aa7RyAbspSlyMy/J6r9TffIO8mXOioXADQfokg==

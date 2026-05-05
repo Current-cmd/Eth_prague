@@ -1,0 +1,65 @@
+import {
+  validateAddress,
+  validateChainId,
+  validateContractIdentifier,
+  validateMetadata,
+  checkIfAlreadyVerified,
+  checkIfJobIsAlreadyRunning,
+  validateStandardJsonInput,
+  validateAndNormalizeFeInput,
+} from "../middlewares";
+import {
+  verifyFromJsonInputEndpoint,
+  verifyFromMetadataEndpoint,
+  verifyFromEtherscanEndpoint,
+  verifySimilarityEndpoint,
+} from "./verification.handlers";
+import { Router } from "express";
+
+const router = Router();
+
+router
+  .route("/verify/:chainId/:address")
+  .post(
+    validateChainId,
+    validateAddress,
+    validateStandardJsonInput,
+    validateAndNormalizeFeInput,
+    validateContractIdentifier,
+    checkIfAlreadyVerified,
+    checkIfJobIsAlreadyRunning,
+    verifyFromJsonInputEndpoint,
+  );
+
+router
+  .route("/verify/metadata/:chainId/:address")
+  .post(
+    validateChainId,
+    validateAddress,
+    validateMetadata,
+    checkIfAlreadyVerified,
+    checkIfJobIsAlreadyRunning,
+    verifyFromMetadataEndpoint,
+  );
+
+router
+  .route("/verify/etherscan/:chainId/:address")
+  .post(
+    validateChainId,
+    validateAddress,
+    checkIfAlreadyVerified,
+    checkIfJobIsAlreadyRunning,
+    verifyFromEtherscanEndpoint,
+  );
+
+router
+  .route("/verify/similarity/:chainId/:address")
+  .post(
+    validateChainId,
+    validateAddress,
+    checkIfAlreadyVerified,
+    checkIfJobIsAlreadyRunning,
+    verifySimilarityEndpoint,
+  );
+
+export default router;

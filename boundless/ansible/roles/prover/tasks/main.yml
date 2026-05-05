@@ -1,0 +1,170 @@
+---
+# Main tasks for bento role
+- name: Clone the Bento repository
+  ansible.builtin.git:
+    repo: https://github.com/boundless-xyz/boundless.git
+    dest: "{{ prover_dir }}"
+    version: "{{ prover_version }}"
+    recursive: true
+    force: true
+  notify: Restart Bento
+
+- name: Get deployed commit SHA
+  ansible.builtin.command:
+    cmd: git rev-parse HEAD
+    chdir: "{{ prover_dir }}"
+  register: prover_commit_sha
+  changed_when: false
+
+- name: Wait for nightly Docker image to be available
+  ansible.builtin.command:
+    cmd: >-
+      docker manifest inspect
+      ghcr.io/boundless-xyz/boundless/{{ item }}:nightly-{{ prover_commit_sha.stdout[:7] }}
+  loop:
+    - prover-agent
+    - prover-agent-cpu
+    - prover-rest-api
+    - prover-cli
+    - broker
+  register: prover_image_check
+  until: prover_image_check.rc == 0
+  retries: 60
+  delay: 30
+  when: prover_wait_for_nightly_image | default(false) | bool
+  changed_when: false
+
+- name: Pin image tag to deployed commit
+  ansible.builtin.set_fact:
+    prover_image_tag: "nightly-{{ prover_commit_sha.stdout[:7] }}"
+  when:
+    - prover_wait_for_nightly_image | default(false) | bool
+    - prover_image_tag | default('') | string | length == 0
+
+- name: Generate Docker Compose environment file
+  ansible.builtin.template:
+    src: docker-compose.env.j2
+    dest: "{{ prover_env_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart Bento
+
+## Broker config deployment — three modes (checked in priority order):
+## 1. prover_broker_config_dir: copy entire directory (broker.toml + broker.*.toml overrides)
+## 2. prover_broker_toml_local + prover_chain_overrides: individual file paths
+## 3. prover_broker_toml_url (default): download broker.toml from URL
+
+- name: Deploy broker config from directory
+  ansible.builtin.copy:
+    src: "{{ prover_broker_config_dir }}/"
+    dest: "{{ prover_dir }}/chain-overrides/"
+    owner: root
+    group: root
+    mode: "0644"
+  when: prover_broker_config_dir | string | length > 0
+  notify: Restart Bento
+
+- name: Copy base broker.toml to prover root
+  ansible.builtin.copy:
+    src: "{{ prover_broker_config_dir }}/broker.toml"
+    dest: "{{ prover_dir }}/broker.toml"
+    owner: root
+    group: root
+    mode: "0644"
+  when: prover_broker_config_dir | string | length > 0
+  notify: Restart Bento
+
+- name: Copy local broker configuration file
+  ansible.builtin.copy:
+    src: "{{ prover_broker_toml_local }}"
+    dest: "{{ prover_dir }}/broker.toml"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - prover_broker_config_dir | string | length == 0
+    - prover_broker_toml_local | string | length > 0
+  notify: Restart Bento
+
+- name: Download broker configuration file
+  ansible.builtin.get_url:
+    url: "{{ prover_broker_toml_url }}"
+    dest: "{{ prover_dir }}/broker.toml"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - prover_broker_config_dir | string | length == 0
+    - prover_broker_toml_local | string | length == 0
+  notify: Restart Bento
+
+- name: Deploy per-chain config overrides (from URL)
+  ansible.builtin.get_url:
+    url: "{{ override_url }}"
+    dest: "{{ prover_dir }}/broker.{{ chain_id }}.toml"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ prover_chain_overrides | default({}) | dict2items }}"
+  loop_control:
+    loop_var: chain_override
+  vars:
+    chain_id: "{{ chain_override.key }}"
+    override_url: "{{ chain_override.value }}"
+  when:
+    - prover_broker_config_dir | string | length == 0
+    - prover_chain_overrides | default({}) | length > 0
+    - chain_override.value is match('^https?://')
+  notify: Restart Bento
+
+- name: Deploy per-chain config overrides (from local file)
+  ansible.builtin.copy:
+    src: "{{ override_path }}"
+    dest: "{{ prover_dir }}/broker.{{ chain_id }}.toml"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ prover_chain_overrides | default({}) | dict2items }}"
+  loop_control:
+    loop_var: chain_override
+  vars:
+    chain_id: "{{ chain_override.key }}"
+    override_path: "{{ chain_override.value }}"
+  when:
+    - prover_broker_config_dir | string | length == 0
+    - prover_chain_overrides | default({}) | length > 0
+    - chain_override.value is not match('^https?://')
+  notify: Restart Bento
+
+- name: Ensure just is installed
+  ansible.builtin.shell: |
+    set -o pipefail
+    if ! command -v just &> /dev/null; then
+      curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+    fi
+  args:
+    executable: /bin/bash
+    creates: /usr/local/bin/just
+
+- name: Write the system service file
+  ansible.builtin.template:
+    src: bento.service.j2
+    dest: /etc/systemd/system/bento.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart Bento
+
+- name: Ensure Bento service is enabled
+  ansible.builtin.systemd:
+    name: bento
+    enabled: true
+    daemon_reload: true
+
+- name: Prune unused Docker resources
+  ansible.builtin.command:
+    cmd: docker system prune -af
+  changed_when: true

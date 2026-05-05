@@ -1,0 +1,39 @@
+[package]
+name = "boundless-slasher"
+resolver = "2"
+version = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+publish = false
+
+[package.metadata.release]
+release = false
+
+[features]
+# Enable this feature to run tests that require r0vm proving (slow without RISC0_DEV_MODE=1)
+test-r0vm = []
+
+[dependencies]
+alloy = { workspace = true, features = ["network", "node-bindings", "rpc-types", "providers", "transports", "sol-types", "contract", "signers", "signer-local"] }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+boundless-market = { workspace = true }
+clap = { workspace = true }
+hex = { workspace = true }
+sqlx = { workspace = true, features = [ "postgres", "runtime-tokio", "json", "migrate", "macros" ] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["json","env-filter"] }
+url = { workspace = true }
+
+[dev-dependencies]
+boundless-cli = { workspace = true }
+boundless-test-utils = { workspace = true }
+broker = { workspace = true }
+futures-util = { workspace = true }
+risc0-ethereum-contracts = { workspace = true }
+sqlx = { workspace = true, features = [ "postgres", "runtime-tokio", "json", "migrate", "macros" ] }
+tracing-test = { workspace = true }
+

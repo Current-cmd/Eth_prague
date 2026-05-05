@@ -1,0 +1,63 @@
+
+
+## @ethereum-sourcify/compilers-types@1.2.0 - 2026-04-14
+
+- Add VyperStorageLayout type and capture missing Vyper compiler output fields (#2739)
+
+## @ethereum-sourcify/compilers-types@1.1.0 - 2026-03-30
+
+- feat: add Fe language support for smart contract verification (#2692)
+
+## @ethereum-sourcify/compilers-types@1.0.13 - 2026-03-17
+
+- Add TransientStorageLayout type (#2689)
+- Refinements to SolidityOutputContract for supporting all Solidity versions (#2652)
+
+## @ethereum-sourcify/compilers-types@1.0.12 - 2026-03-02
+
+- improved types for StorageLayout and VyperSourceMap
+
+## @ethereum-sourcify/compilers-types@1.0.11 - 2026-01-07
+
+- Add `AnyJsonInput` type
+
+## @ethereum-sourcify/compilers-types@1.0.10 - 2025-10-28
+
+none
+
+## @ethereum-sourcify/compilers-types@1.0.9 - 2025-10-16
+
+- Update dependencies
+
+## @ethereum-sourcify/compilers-types@1.0.8 - 2025-09-18
+
+- update repo links
+
+## @ethereum-sourcify/compilers-types@1.0.7 - 2025-08-25
+
+- Use consistent ethers version and JsonFragment instead of abitype
+
+## @ethereum-sourcify/compilers-types@1.0.6 - 2025-08-11
+
+- update dependencies
+
+## @ethereum-sourcify/compilers-types@1.0.5 - 2025-08-04
+
+- update dependencies
+
+## @ethereum-sourcify/compilers-types@1.0.4 - 2025-06-18
+
+- Add a shared output error type for Solidity and Vyper
+
+## @ethereum-sourcify/compilers-types@1.0.3 - 2025-05-06
+
+- bump version
+
+## @ethereum-sourcify/compilers-types@1.0.2 - 2025-04-30
+
+- Fixes build for browser context
+- update dependencies
+
+## @ethereum-sourcify/compilers-types@1.0.1 - 2025-04-09
+
+- Initialize compilers types

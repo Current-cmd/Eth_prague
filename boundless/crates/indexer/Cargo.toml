@@ -1,0 +1,83 @@
+[package]
+name = "boundless-indexer"
+resolver = "2"
+version = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+publish = false
+
+[package.metadata.release]
+release = false
+
+[[bin]]
+name = "market-indexer"
+path = "src/bin/market-indexer.rs"
+
+[[bin]]
+name = "rewards-indexer"
+path = "src/bin/rewards-indexer.rs"
+
+[[bin]]
+name = "market-efficiency-indexer"
+path = "src/bin/market-efficiency-indexer.rs"
+
+[[bin]]
+name = "market-indexer-backfill"
+path = "src/bin/market-indexer-backfill.rs"
+
+[features]
+# Enable this feature to run tests that require r0vm proving (slow without RISC0_DEV_MODE=1)
+test-r0vm = []
+# Enable this feature to run tests that require RPC URLs (ETH_MAINNET_RPC_URL, etc.)
+test-rpc = []
+
+[dependencies]
+alloy = { workspace = true, features = ["network", "node-bindings", "rpc-types", "providers", "transports", "sol-types", "contract", "signers", "signer-local", "serde"] }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-s3 = { workspace = true }
+bonsai-sdk = { version = "1.4.1", features = ["non_blocking"] }
+boundless-market = { workspace = true }
+boundless-povw = { workspace = true }
+boundless-rewards = { workspace = true }
+boundless-zkc = { workspace = true }
+broker = { workspace = true }
+bytemuck = { workspace = true }
+bytes = "1.10.1"
+chrono = { workspace = true }
+clap = { workspace = true }
+futures-util = { workspace = true }
+hex = { workspace = true }
+log = "0.4"
+moka = { version = "0.12", features = ["future"] }
+rand = { workspace = true }
+risc0-zkvm = { workspace = true, features = ["std"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true, features = ["postgres", "runtime-tokio", "json", "migrate", "macros"] }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
+url = { workspace = true }
+uuid = { version = "1.18.1", features = ["v4"] }
+
+[dev-dependencies]
+assert_cmd = "=2.0"
+boundless-cli = { workspace = true }
+boundless-market = { workspace = true }
+boundless-test-utils = { workspace = true }
+broker = { workspace = true }
+futures-util = { workspace = true }
+indexer-monitor = { path = "../lambdas/indexer-monitor" }
+order-stream = { workspace = true }
+risc0-zkvm = { workspace = true, features = ["std"] }
+sqlx = { workspace = true, features = ["postgres", "runtime-tokio", "json", "migrate", "macros"] }
+test-log = { workspace = true }
+tracing-test = { workspace = true }
+wiremock = "0.6"
+

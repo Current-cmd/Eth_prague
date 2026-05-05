@@ -1,0 +1,268 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Server - without build",
+      "runtimeVersion": "22.22.0",
+      "program": "${workspaceFolder}/services/server/dist/server/cli.js",
+      "envFile": "${workspaceFolder}/services/server/.env",
+      "outFiles": [
+        "${workspaceFolder}/services/server/dist/**/*.js",
+        "${workspaceFolder}/packages/**/build/**/*.js"
+      ],
+      "env": {
+        // "DEBUG": "express:*" // Debug all express modules *
+        // "NODE_ENV": "production"
+        // "NODE_LOG_LEVEL": "debug"
+      },
+      "smartStep": true,
+      "console": "integratedTerminal",
+      "outputCapture": "std"
+    },
+    {
+      "type": "node",
+      "request": "attach",
+      "name": "Docker: Attach to Server",
+      "remoteRoot": "/home/app",
+      "localRoot": "${workspaceFolder}",
+      "port": 9229,
+      "address": "localhost"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "4Byte - without build",
+      "runtimeVersion": "22.22.0",
+      "program": "${workspaceFolder}/services/4byte/dist/cli.js",
+      "envFile": "${workspaceFolder}/services/4byte/.env",
+      "outFiles": [
+        "${workspaceFolder}/services/4byte/dist/**/*.js",
+        "${workspaceFolder}/packages/**/build/**/*.js"
+      ],
+      "env": {
+        // "NODE_ENV": "production"
+      },
+      "smartStep": true,
+      "console": "integratedTerminal",
+      "outputCapture": "std"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Monitor - without build",
+      "runtimeVersion": "22.22.0",
+      "cwd": "${workspaceFolder}/services/monitor",
+      "program": "dist/index.js",
+      "args": ["--chainsPath=chains-dev.json"],
+      "envFile": ".env",
+      "outFiles": [
+        "${workspaceFolder}/services/monitor/dist/**/*.js",
+        "${workspaceFolder}/packages/**/build/**/*.js"
+      ],
+      "smartStep": true,
+      "console": "integratedTerminal",
+      "outputCapture": "std"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Mocha - Server Unit",
+      "runtimeVersion": "22.22.0",
+      "program": "${workspaceRoot}/node_modules/.bin/mocha",
+      "cwd": "${workspaceFolder}/services/server",
+      "args": [
+        "${workspaceFolder}/services/server/test/unit/**/*.spec.ts",
+        "-r",
+        "${workspaceFolder}/services/server/test/load-env.js",
+        // "--grep=should initialize compilers",
+        "--exit"
+      ],
+      "smartStep": true,
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Mocha - Server Integration",
+      "runtimeVersion": "22.22.0",
+      "program": "${workspaceRoot}/node_modules/.bin/mocha",
+      "cwd": "${workspaceFolder}/services/server",
+      "env": {
+        // "DEBUG": "express:*", // Debug all express modules *
+      },
+      "preLaunchTask": "server:database-test:up",
+      "postDebugTask": "server:database-test:down",
+      "args": [
+        "${workspaceFolder}/services/server/test/integration/**/*.spec.ts",
+        "-r",
+        "${workspaceFolder}/services/server/test/load-env.js",
+        "--no-timeout",
+        // Run a single test when debugging
+        // "--grep=v0.6.12",
+        "--exit"
+      ],
+      "smartStep": true,
+      "console": "integratedTerminal"
+      // "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Mocha - Etherscan Instances",
+      "runtimeVersion": "22.22.0",
+      "program": "${workspaceRoot}/node_modules/.bin/mocha",
+      "cwd": "${workspaceFolder}/services/server",
+      "env": {
+        // "TEST_CHAIN": "84532",
+      },
+      "preLaunchTask": "server:database-test:up",
+      "postDebugTask": "server:database-test:down",
+      "args": [
+        "${workspaceFolder}/services/server/test/chains/etherscan-instances.spec.ts",
+        "-r",
+        "${workspaceFolder}/services/server/test/load-env.js",
+        "--no-timeout",
+        "--exit"
+      ],
+      "smartStep": true,
+      "console": "integratedTerminal"
+      // "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Mocha - lib-sourcify",
+      "runtimeVersion": "22.22.0",
+      "cwd": "${workspaceFolder}/packages/lib-sourcify",
+      "program": "${workspaceRoot}/node_modules/.bin/mocha",
+      "args": [
+        "-r",
+        "ts-node/register",
+        "./test/**/*.spec.ts",
+        "--no-timeout",
+        // Run a single test when debugging
+        // "--grep=v0.6.12",
+        "--exit"
+      ],
+      "sourceMaps": true,
+      "smartStep": true,
+      "console": "integratedTerminal"
+      // "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Mocha - bytecode-utils",
+      "runtimeVersion": "22.22.0",
+      "cwd": "${workspaceFolder}/packages/bytecode-utils",
+      "program": "${workspaceRoot}/node_modules/.bin/mocha",
+      "args": [
+        "-r",
+        "ts-node/register",
+        "./test/**/*.spec.ts",
+        "--no-timeout",
+        // Run a single test when debugging
+        // "--grep=v0.6.12",
+        "--exit"
+      ],
+      "sourceMaps": true,
+      "smartStep": true,
+      "console": "integratedTerminal"
+      // "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Mocha - compilers",
+      "runtimeVersion": "22.22.0",
+      "cwd": "${workspaceFolder}/packages/compilers",
+      "program": "${workspaceRoot}/node_modules/.bin/mocha",
+      "args": [
+        "-r",
+        "ts-node/register",
+        "./test/**/*.spec.ts",
+        "--no-timeout",
+        // Run a single test when debugging
+        // "--grep=v0.6.12",
+        "--exit"
+      ],
+      "sourceMaps": true,
+      "smartStep": true,
+      "console": "integratedTerminal"
+      // "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Mocha - 4Byte",
+      "runtimeVersion": "22.22.0",
+      "cwd": "${workspaceFolder}/services/4byte",
+      "program": "${workspaceRoot}/node_modules/.bin/mocha",
+      "preLaunchTask": "4byte:database-test:up",
+      "postDebugTask": "4byte:database-test:down",
+      "args": [
+        "--require",
+        "ts-node/register",
+        "--exit",
+        "--recursive",
+        "test/**/*.spec.ts"
+        // Run a single test when debugging
+        // "--grep=should lookup signatures"
+      ],
+      "env": {
+        // "NODE_ENV": "test"
+        // "NODE_LOG_LEVEL": "debug"
+        "FOURBYTES_POSTGRES_HOST": "localhost",
+        "FOURBYTES_POSTGRES_PORT": "5433"
+      },
+      "smartStep": true,
+      "console": "integratedTerminal"
+      // "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Mocha - Monitor",
+      "runtimeVersion": "22.22.0",
+      "cwd": "${workspaceFolder}/services/monitor",
+      "program": "${workspaceRoot}/node_modules/.bin/mocha",
+      "args": [
+        "${workspaceFolder}/services/monitor/test/**.spec.ts",
+        "--no-timeout",
+        // Run a single test when debugging
+        // "--grep=v0.6.12",
+        "--exit"
+      ],
+      "smartStep": true,
+      "console": "integratedTerminal"
+      // "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Mocha - Chains",
+      "runtimeVersion": "22.22.0",
+      "program": "${workspaceRoot}/node_modules/.bin/mocha",
+      "cwd": "${workspaceFolder}/services/server",
+      "env": {
+        // "NEW_CHAIN_ID": "333000333"
+      },
+      "preLaunchTask": "server:database-test:up",
+      "postDebugTask": "server:database-test:down",
+      "args": [
+        "${workspaceFolder}/services/server/test/chains/chain-tests.spec.ts",
+        "-r",
+        "${workspaceFolder}/services/server/test/load-env.js",
+        "--exit"
+      ],
+      "smartStep": true,
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ]
+}

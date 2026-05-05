@@ -1,0 +1,127 @@
+// Copyright 2026 Boundless Foundation, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(missing_docs)]
+
+/// Peak performance thresholds for enabling requestor lists (kHz) for large requests.
+pub const LARGE_REQUESTOR_LIST_THRESHOLD_KHZ: f64 = 4000.0;
+/// Peak performance thresholds for enabling requestor lists (kHz) for XL requests.
+pub const XL_REQUESTOR_LIST_THRESHOLD_KHZ: f64 = 10000.0;
+
+/// Re-export of [alloy], provided to ensure that the correct version of the types used in the
+/// public API are available in case multiple versions of [alloy] are in use.
+///
+/// Because [alloy] is a v0.x crate, it is not covered under the semver policy of this crate.
+#[cfg(not(target_os = "zkvm"))]
+pub use alloy;
+
+/// A ProviderLayer module.
+///
+/// It can be added to an alloy Provider to log warnings and errors
+/// when the balance of a given address falls below certain thresholds.
+#[cfg(not(target_os = "zkvm"))]
+pub mod balance_alerts_layer;
+
+/// Client module for interacting with the Boundless Market API.
+#[cfg(not(target_os = "zkvm"))]
+pub mod client;
+#[cfg(not(target_os = "zkvm"))]
+pub use client::{Client, StandardClient};
+
+/// Client module for interacting with the Boundless Indexer API.
+#[cfg(not(target_os = "zkvm"))]
+pub mod indexer_client;
+/// Shared data types for the Boundless Indexer market API.
+#[cfg(not(target_os = "zkvm"))]
+pub mod indexer_types;
+/// Test helpers for testing the Boundless Market.
+#[cfg(all(feature = "test-utils", not(target_os = "zkvm")))]
+pub mod test_helpers;
+
+/// Contracts module for interacting with the Boundless Market smart contracts.
+pub mod contracts;
+#[cfg(not(target_os = "zkvm"))]
+/// Dynamic gas filler module.
+pub mod dynamic_gas_filler;
+#[cfg(not(target_os = "zkvm"))]
+pub use contracts::boundless_market::BoundlessMarketService;
+pub use contracts::{Offer, ProofRequest, RequestId, RequestInput, Requirements};
+
+/// Configs for deployments of the Boundless Market (e.g. contract addresses, URLs, etc).
+#[cfg(not(target_os = "zkvm"))]
+pub mod deployments;
+#[cfg(not(target_os = "zkvm"))]
+pub use deployments::{Deployment, SUPPORTED_CHAINS};
+
+/// Input module for serializing input.
+#[cfg(not(target_os = "zkvm"))]
+pub mod input;
+#[cfg(not(target_os = "zkvm"))]
+pub use input::{GuestEnv, GuestEnvBuilder};
+
+/// Order stream client module for submitting requests off-chain.
+#[cfg(not(target_os = "zkvm"))]
+pub mod order_stream_client;
+
+/// Telemetry types shared between the broker and order-stream.
+#[cfg(not(target_os = "zkvm"))]
+pub mod telemetry;
+
+#[cfg(not(target_os = "zkvm"))]
+/// A ProviderLayer module for managing nonces with semaphores.
+pub mod nonce_layer;
+#[cfg(not(target_os = "zkvm"))]
+pub use order_stream_client::OrderStreamClient;
+
+/// Module providing functionality to build requests.
+#[cfg(not(target_os = "zkvm"))]
+pub mod request_builder;
+#[cfg(not(target_os = "zkvm"))]
+pub use request_builder::ParameterizationMode;
+
+/// Module providing blake3-groth16 related integrations.
+#[cfg(all(feature = "blake3-groth16", not(target_os = "zkvm")))]
+pub mod blake3_groth16;
+
+/// Module providing market pricing functionality.
+#[cfg(not(target_os = "zkvm"))]
+pub mod price_provider;
+
+/// Module providing price oracle functionality for USD-based pricing.
+#[cfg(not(target_os = "zkvm"))]
+pub mod price_oracle;
+
+/// Selector module implementing utility functions for supported selectors.
+#[cfg(not(target_os = "zkvm"))]
+pub mod selector;
+
+/// Order pricing helpers and prover utilities.
+#[cfg(all(feature = "prover_utils", not(target_os = "zkvm")))]
+pub mod prover_utils;
+#[cfg(all(not(feature = "prover_utils"), not(target_os = "zkvm")))]
+pub(crate) mod prover_utils;
+
+/// Storage module for interacting with the storage uploader.
+#[cfg(not(target_os = "zkvm"))]
+pub mod storage;
+#[cfg(not(target_os = "zkvm"))]
+pub use storage::{
+    StandardDownloader, StandardUploader, StorageDownloaderConfig, StorageUploaderConfig,
+};
+
+/// Utility functions and types used elsewhere.
+pub(crate) mod util;
+pub use util::NotProvided;

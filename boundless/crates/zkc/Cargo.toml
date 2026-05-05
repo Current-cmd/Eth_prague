@@ -1,0 +1,26 @@
+[package]
+name = "boundless-zkc"
+resolver = "2"
+version = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+publish = false
+
+[package.metadata.release]
+release = false
+
+[dependencies]
+alloy = { workspace = true, features = ["network", "node-bindings", "rpc-types", "providers", "transports", "sol-types", "contract", "signers", "signer-local"] }
+alloy-chains = "0.2"
+anyhow = "1.0"
+clap = { workspace = true }
+derive_builder = "0.20.2"
+tracing = { workspace = true }
+
+[build-dependencies]
+serde_json = { version = "1.0" }
+
+[dev-dependencies]
+boundless-test-utils = { workspace = true, features = ["povw"] }
+rand = "0.9"

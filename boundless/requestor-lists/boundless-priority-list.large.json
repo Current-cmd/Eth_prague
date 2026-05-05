@@ -1,0 +1,42 @@
+{
+  "name": "Boundless Recommended Priority List for Large Provers",
+  "description": "List of recommended priority requestors for provers capable of >4000 kHz proving cluster performance.",
+  "schemaVersion": {
+    "major": 1,
+    "minor": 0
+  },
+  "version": {
+    "major": 1,
+    "minor": 0
+  },
+  "requestors": [
+    {
+      "address": "0x734df7809c4ef94da037449c287166d114503198",
+      "chainId": 8453,
+      "name": "Signal",
+      "description": "ZKasper Signal - finality proofs of Ethereum Mainnet, that require substantial compute resources",
+      "tags": [],
+      "extensions": {
+        "requestEstimates": {
+          "estimatedMcycleCountMin": 50000,
+          "estimatedMcycleCountMax": 55000,
+          "estimatedMaxInputSizeMB": 1000
+        }
+      }
+    },
+    {
+      "address": "0x382bba7d7bc9ae86c5de3e16c4ca96bcc0a3478e",
+      "chainId": 8453,
+      "name": "Mango",
+      "description": "",
+      "tags": [],
+      "extensions": {
+        "requestEstimates": {
+          "estimatedMcycleCountMin": 170,
+          "estimatedMcycleCountMax": 10000,
+          "estimatedMaxInputSizeMB": 550
+        }
+      }
+    }
+  ]
+}

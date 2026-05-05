@@ -1,0 +1,97 @@
+// Copyright 2026 Boundless Foundation, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use std::str::FromStr;
+
+use alloy::primitives::Address;
+use anyhow::Result;
+use sqlx::{postgres::PgPoolOptions, PgPool, Row};
+
+/// The `monitoring` struct provides functionality to monitor and query the indexer database.
+pub struct Monitor {
+    /// The database connection pool.
+    pub db: PgPool,
+}
+
+impl Monitor {
+    /// Creates a new instance of the Monitor.
+    pub async fn new(conn: &str) -> Result<Self> {
+        let pool = PgPoolOptions::new().max_connections(5).connect(conn).await?;
+
+        Ok(Self { db: pool })
+    }
+
+    pub async fn fetch_request_digest(&self, request_digest: &str) -> Result<Option<String>> {
+        let row =
+            sqlx::query("SELECT request_digest FROM proof_requests WHERE request_digest = $1")
+                .bind(request_digest)
+                .fetch_optional(&self.db)
+                .await?;
+
+        if let Some(row) = row {
+            let request_digest: String = row.get(0);
+            Ok(Some(request_digest))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Fetches the locked timestamp for a given request digest.
+    pub async fn fetch_locked_at(&self, request_digest: &str) -> Result<Option<u64>> {
+        let row = sqlx::query(
+            "SELECT block_timestamp FROM request_locked_events WHERE request_digest = $1",
+        )
+        .bind(request_digest)
+        .fetch_optional(&self.db)
+        .await?;
+
+        if let Some(row) = row {
+            let locked_at: i64 = row.get(0);
+            Ok(Some(locked_at as u64))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Fetches the fulfilled_at timestamp for a given request digest.
+    pub async fn fetch_fulfilled_at(&self, request_digest: &str) -> Result<Option<u64>> {
+        let row = sqlx::query(
+            "SELECT block_timestamp FROM request_fulfilled_events WHERE request_digest = $1",
+        )
+        .bind(request_digest)
+        .fetch_optional(&self.db)
+        .await?;
+
+        if let Some(row) = row {
+            let fulfilled_at: i64 = row.get(0);
+            Ok(Some(fulfilled_at as u64))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn fetch_prover(&self, request_digest: &str) -> Result<Option<Address>> {
+        let row = sqlx::query("SELECT prover_address FROM proofs WHERE request_digest = $1")
+            .bind(request_digest)
+            .fetch_optional(&self.db)
+            .await?;
+
+        if let Some(row) = row {
+            let prover_address: String = row.get(0);
+            Ok(Some(Address::from_str(&prover_address)?))
+        } else {
+            Ok(None)
+        }
+    }
+}

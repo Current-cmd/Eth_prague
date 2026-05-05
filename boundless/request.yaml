@@ -1,0 +1,37 @@
+# Unique ID for this request, constructed from the client address and a 32-bit index.
+# Constructed as (address(client) << 32) | index
+id: 0 # if set to 0, gets overwritten by a random id
+
+# Specifies the requirements for the delivered proof, including the program that must be run,
+# and the constraints on the journal's value, which define the statement to be proven.
+requirements:
+    predicate:
+        predicateType: PrefixMatch
+        # concat(imageId, prefix) = concat(53cb4210cf2f5bf059e3a4f7bcbb8e21ddc5c11a690fd79e87947f9fec5522a3, 53797374)
+        data: "53cb4210cf2f5bf059e3a4f7bcbb8e21ddc5c11a690fd79e87947f9fec5522a353797374"
+    callback:
+        addr: "0x0000000000000000000000000000000000000000"
+        gasLimit: 0
+    selector: "00000000"
+
+# A public URI where the program (i.e. image) can be downloaded. This URI will be accessed by
+# provers that are evaluating whether to bid on the request.
+imageUrl: "https://gateway.beboundless.cloud/ipfs/bafkreie5vdnixfaiozgnqdfoev6akghj5ek3jftrsjt7uw2nnuiuegqsyu"
+
+# Input to be provided to the zkVM guest execution.
+# The input data is a encoded guest environment.
+# See crates/boundless-market/src/input.rs for additional details.
+input:
+    inputType: Inline
+    data: "0181a5737464696edc003553797374656d54696d65207b2074765f7365633a20313733383030343939382c2074765f6e7365633a20363235373837303030207d"
+
+# Offer specifying how much the client is willing to pay to have this request fulfilled
+# For more information, please see https://docs.boundless.network/developers/tutorials/configure
+offer:
+    minPrice: 0
+    maxPrice: 250000000000000 # 0.00025 ETH
+    lockCollateral: 20000000000000000000 # 20 ZKC
+    rampUpStart: 0 # 0 to use current unix timestamp
+    rampUpPeriod: 85 # blocks
+    lockTimeout: 625 # 10 minutes 25 seconds
+    timeout:  1500 # 25 minutes
