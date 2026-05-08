@@ -7,6 +7,9 @@ import { BadgePicker } from "../components/BadgePicker";
 import { AnonMark, Btn } from "../components/shared";
 import { sanitizeImage } from "../lib/sanitize/exif";
 import { sanitizePdf } from "../lib/sanitize/pdf";
+import { ALL_CATEGORIES, CATEGORY_META } from "../lib/categoryMeta";
+import { StructuredFields } from "../components/StructuredFields";
+import { api } from "../lib/api";
 
 const STEPS = [
   { id: 1, label: "Sign In",  sub: "Wallet + badge" },
@@ -71,9 +74,10 @@ export default function Submit() {
         <div key={step} className="step-enter">
           {step === 1 && <Step1 state={state} update={update} />}
           {step === 2 && <Step2 state={state} update={update} />}
-          {step >= 3 && (
+          {step === 3 && <Step3 state={state} update={update} />}
+          {step >= 4 && (
             <div className="font-mono text-[11px] text-paper3 uppercase tracking-[0.18em]">
-              Step {step} content lands in subsequent tasks (24–26).
+              Step {step} content lands in subsequent tasks (25–26).
             </div>
           )}
         </div>
@@ -272,6 +276,109 @@ function Step2({ state, update }: { state: SubmitFlowState; update: (p: Partial<
         />
         <div className="mt-1 font-mono text-[10px] text-paper3 text-right">{(state.summary ?? "").length}/1000</div>
       </div>
+    </div>
+  );
+}
+
+function Step3({ state, update }: { state: SubmitFlowState; update: (p: Partial<SubmitFlowState>) => void }) {
+  const [pinning, setPinning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pin = async () => {
+    if (!state.category || !state.title || !state.summary || !state.company) return;
+    setPinning(true);
+    setError(null);
+    try {
+      const payload = {
+        version: 1 as const,
+        company: { ensName: state.company.ensName, ensNode: state.company.ensNode },
+        category: state.category,
+        title: state.title,
+        summary: state.summary,
+        structuredFields: state.structuredFields ?? {},
+        evidence: state.evidence,
+        submittedAt: new Date().toISOString(),
+        pseudonym: `${state.pseudonym}.workers.${state.company.ensName}`,
+      };
+      const { data, error: e } = await api.POST("/ipfs/pin-json", { body: payload });
+      if (e || !data) throw new Error("pin-json failed");
+      update({ payloadCid: data.cid, reportHash: data.reportHash });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPinning(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-2 font-mono text-[10.5px] uppercase tracking-[0.22em] text-amber">03 — Classify & describe</div>
+      <h2 className="font-serif-disp text-4xl md:text-5xl text-paper leading-tight mb-3">Pick a category, fill the structured fields.</h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+        {ALL_CATEGORIES.map((c) => {
+          const meta = CATEGORY_META[c];
+          const on = state.category === c;
+          return (
+            <button
+              key={c}
+              onClick={() => update({ category: c, structuredFields: {} })}
+              className={`text-left border ${on ? "border-amber bg-amber/5" : "border-rule2 hover:border-paper3"} p-5 hover-lift relative`}
+              style={{ borderRadius: 0 }}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className={`font-serif-disp text-4xl leading-none ${on ? "text-amber" : "text-paper"}`}>{meta.glyph}</div>
+                {on && <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-amber">Selected</span>}
+              </div>
+              <div className={`font-mono text-[12px] uppercase tracking-[0.18em] mb-2 ${on ? "text-amber" : "text-paper"}`}>{meta.label}</div>
+              <div className="text-[12.5px] text-paper2 leading-relaxed">{meta.desc}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {state.category && (
+        <>
+          <div className="mb-6">
+            <label className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3 block mb-2">Title <span className="text-alert">*</span></label>
+            <input
+              type="text"
+              maxLength={200}
+              value={state.title ?? ""}
+              onChange={(e) => update({ title: e.target.value })}
+              placeholder="One-line summary, max 200 chars"
+              className="w-full bg-ink border border-rule2 text-paper text-[15px] p-3 focus:outline-none focus:border-paper3"
+              style={{ borderRadius: 0 }}
+            />
+          </div>
+
+          <div className="mb-8">
+            <StructuredFields
+              category={state.category}
+              value={state.structuredFields ?? {}}
+              onChange={(v) => update({ structuredFields: v })}
+            />
+          </div>
+
+          <Btn
+            kind={state.payloadCid ? "ghost" : "primary"}
+            size="lg"
+            disabled={pinning || !state.title || !state.summary}
+            onClick={pin}
+          >
+            {pinning ? "Pinning canonical JSON…" : state.payloadCid ? "✓ Pinned — pin again to refresh" : "Pin canonical JSON"}
+          </Btn>
+
+          {state.reportHash && (
+            <div className="mt-4 font-mono text-[11px] text-paper3">
+              reportHash: <span className="text-paper">{state.reportHash}</span><br />
+              cid: <span className="text-paper">{state.payloadCid}</span>
+            </div>
+          )}
+
+          {error && <div className="mt-4 font-mono text-[11px] text-alert">{error}</div>}
+        </>
+      )}
     </div>
   );
 }
