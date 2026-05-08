@@ -2,7 +2,6 @@ use anyhow::Result;
 use clap::Parser;
 use risc0_zkvm::{default_executor, ExecutorEnv};
 use serde::{Deserialize, Serialize};
-use shieldpass_methods::Journal;
 use std::io::{self, Read};
 
 /// Local prover CLI for ShieldPass ZK circuit
@@ -80,36 +79,38 @@ fn run_proof(req: ProofRequest) -> Result<ProofReceipt> {
     let period_id = req.periodId;
 
     // Build executor environment
-    let mut env = ExecutorEnv::builder();
+    let mut env_builder = ExecutorEnv::builder();
 
     // Write private inputs
-    env.write_slice(&badge);
-    env.write_slice(&merkle_path);
-    env.write_slice(&merkle_indices);
+    env_builder.write_slice(&badge);
+    env_builder.write_slice(&merkle_path);
+    env_builder.write_slice(&merkle_indices);
 
     // Write public inputs
-    env.write_slice(&root);
-    env.write_slice(&report_hash);
-    env.write_slice(&period_id);
-    env.write_slice(&ens_node);
+    env_builder.write_slice(&root);
+    env_builder.write_slice(&report_hash);
+    env_builder.write_slice(&period_id);
+    env_builder.write_slice(&ens_node);
 
     // Build executor
-    let env = env.build()?;
+    let env = env_builder.build()?;
 
     // Get the ELF from the methods crate
+    // Note: This expects the ELF to be built at this path
     let elf = include_bytes!("../../methods/guest/target/riscv32im-risc0-zkvm-elf/release/shieldpass-guest");
 
     // Run the prover
     let exec = default_executor();
     let session = exec.execute(env, elf)?;
-    let journal = session.journal.clone();
 
-    // Decode the journal (should be abi-encoded Journal struct)
-    let journal_data: Vec<u8> = journal.decode();
-    if journal_data.len() != 160 {
+    // Get the journal (the committed data from guest)
+    let journal_bytes = session.journal.unwrap().decode();
+
+    // Verify journal length
+    if journal_bytes.len() != 160 {
         anyhow::bail!(
             "Unexpected journal length: expected 160 bytes (5 x 32), got {}",
-            journal_data.len()
+            journal_bytes.len()
         );
     }
 
@@ -121,11 +122,11 @@ fn run_proof(req: ProofRequest) -> Result<ProofReceipt> {
     let mut period_id_arr = [0u8; 32];
     let mut ens_node_arr = [0u8; 32];
 
-    root_arr.copy_from_slice(&journal_data[0..32]);
-    report_hash_arr.copy_from_slice(&journal_data[32..64]);
-    nullifier_arr.copy_from_slice(&journal_data[64..96]);
-    period_id_arr.copy_from_slice(&journal_data[96..128]);
-    ens_node_arr.copy_from_slice(&journal_data[128..160]);
+    root_arr.copy_from_slice(&journal_bytes[0..32]);
+    report_hash_arr.copy_from_slice(&journal_bytes[32..64]);
+    nullifier_arr.copy_from_slice(&journal_bytes[64..96]);
+    period_id_arr.copy_from_slice(&journal_bytes[96..128]);
+    ens_node_arr.copy_from_slice(&journal_bytes[128..160]);
 
     // periodId is uint64, stored in big-endian in last 8 bytes
     let period_id_val = u64::from_be_bytes(
@@ -134,8 +135,13 @@ fn run_proof(req: ProofRequest) -> Result<ProofReceipt> {
             .map_err(|_| anyhow::anyhow!("Failed to parse periodId"))?,
     );
 
-    let receipt = ProofReceipt {
-        seal: bytes_to_hex(&session.seal.bytes),
+    // Get the receipt with seal and image ID
+    let receipt = session.send()?;
+    let seal_bytes = receipt.seal;
+    let image_id = receipt.image_id;
+
+    let proof_receipt = ProofReceipt {
+        seal: bytes_to_hex(seal_bytes),
         journal: JournalOutput {
             root: bytes_to_hex(&root_arr),
             reportHash: bytes_to_hex(&report_hash_arr),
@@ -143,10 +149,10 @@ fn run_proof(req: ProofRequest) -> Result<ProofReceipt> {
             periodId: period_id_val,
             ensNode: bytes_to_hex(&ens_node_arr),
         },
-        imageId: bytes_to_hex(&session SEAL.image_id),
+        imageId: bytes_to_hex(image_id.as_bytes()),
     };
 
-    Ok(receipt)
+    Ok(proof_receipt)
 }
 
 fn main() -> Result<()> {

@@ -1,4 +1,4 @@
-import { createPublicClient, http } from "viem";
+import { createPublicClient, http, keccak256 as keccak256Viem, toBytes } from "viem";
 import { sepolia } from "viem/chains";
 import { SEPOLIA_CONFIG } from "@shieldpass/shared/chain";
 
@@ -13,13 +13,6 @@ const ENS_REGISTRY_ABI = [
     inputs: [{ name: "node", type: "bytes32" }],
     name: "resolver",
     outputs: [{ name: "resolver", type: "address" }],
-    type: "function",
-  },
-  {
-    constant: true,
-    inputs: [{ name: "node", type: "bytes32" }],
-    name: "owner",
-    outputs: [{ name: "owner", type: "address" }],
     type: "function",
   },
 ] as const;
@@ -89,36 +82,28 @@ export async function getText(
   });
 }
 
-// ENS namehash
+// ENS namehash per ENSIP-1
 export function namehash(name: string): `0x${string}` {
-  let node = "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
-  if (name === "") return node;
+  if (name === "") {
+    return "0x0000000000000000000000000000000000000000000000000000000000000000";
+  }
 
   const labels = name.split(".");
+  let node: Uint8Array = new Uint8Array(32);
+
   for (const label of labels.reverse()) {
-    const labelHash = keccak256(Buffer.from(label));
-    node = keccak256(
-      Buffer.concat([
-        Buffer.from(node.slice(2), "hex"),
-        Buffer.from(labelHash.slice(2), "hex"),
-      ])
-    ) as `0x${string}`;
+    const labelBytes = toBytes(label);
+    const labelHash = keccak256Viem(labelBytes);
+    const combined = new Uint8Array(64);
+    combined.set(node);
+    combined.set(toBytes(labelHash), 32);
+    node = toBytes(keccak256Viem(combined));
   }
-  return node;
+
+  return `0x${Buffer.from(node).toString("hex")}` as `0x${string}`;
 }
 
-function keccak256(data: Buffer): `0x${string}` {
-  // Simple keccak256 using viem
-  const import_promise = import("viem").then((m) => m.keccak256);
-  // For now, use the client's extend method
-  return client.extend({
-    methods: {
-      keccak256: {
-        async request({ params }: any) {
-          const { keccak256: k } = await import("viem");
-          return k(params);
-        },
-      },
-    },
-  }).keccak256(data as `0x${string}`);
+// Convenience: compute namehash from ENS name
+export function ensNodeFromName(ensName: string): `0x${string}` {
+  return namehash(ensName);
 }
