@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 import type { Hex } from "viem";
 import { ReportCategory } from "@shieldpass/shared/enums";
@@ -10,6 +10,9 @@ import { sanitizePdf } from "../lib/sanitize/pdf";
 import { ALL_CATEGORIES, CATEGORY_META } from "../lib/categoryMeta";
 import { StructuredFields } from "../components/StructuredFields";
 import { api } from "../lib/api";
+import { leavesFor } from "../lib/demoWorkers";
+import { buildTree, buildPath } from "../lib/merkle";
+import { nullifierHash } from "../lib/poseidon";
 
 const STEPS = [
   { id: 1, label: "Sign In",  sub: "Wallet + badge" },
@@ -75,11 +78,8 @@ export default function Submit() {
           {step === 1 && <Step1 state={state} update={update} />}
           {step === 2 && <Step2 state={state} update={update} />}
           {step === 3 && <Step3 state={state} update={update} />}
-          {step >= 4 && (
-            <div className="font-mono text-[11px] text-paper3 uppercase tracking-[0.18em]">
-              Step {step} content lands in subsequent tasks (25–26).
-            </div>
-          )}
+          {step === 4 && <Step4 state={state} update={update} />}
+          {step === 5 && <Step5 state={state} />}
         </div>
 
         <div className="mt-12 flex items-center justify-between border-t border-rule pt-6">
@@ -381,4 +381,119 @@ function Step3({ state, update }: { state: SubmitFlowState; update: (p: Partial<
       )}
     </div>
   );
+}
+
+const QUARTER_SECS = 7_776_000;
+
+function Step4({ state, update }: { state: SubmitFlowState; update: (p: Partial<SubmitFlowState>) => void }) {
+  const [phase, setPhase] = useState<"idle" | "submitting" | "polling" | "done" | "error">("idle");
+  const [progress, setProgress] = useState(0);
+  const [err, setErr] = useState<string | null>(null);
+
+  const start = async () => {
+    if (!state.badge || !state.company || !state.reportHash || state.leafIndex === undefined) {
+      setErr("missing inputs from earlier steps"); setPhase("error"); return;
+    }
+    setErr(null); setPhase("submitting");
+
+    try {
+      const periodId = BigInt(Math.floor(Date.now() / 1000 / QUARTER_SECS));
+      const leaves = leavesFor(state.company.ensName);
+      if (!leaves) throw new Error(`no leaves bundle for ${state.company.ensName} — populate demoWorkers.ts`);
+      const tree = buildTree(leaves, 16);
+      const proof = buildPath(tree, state.leafIndex);
+      const nullifier = nullifierHash(state.badge, periodId);
+
+      update({ periodId, nullifier });
+
+      const { data, error } = await api.POST("/proofs", {
+        body: {
+          ensNode: state.company.ensNode,
+          reportHash: state.reportHash,
+          periodId: Number(periodId),
+          badge: state.badge,
+          merklePath: proof.path,
+          merkleIndices: proof.indices,
+        },
+      });
+      if (error || !data) throw new Error("proofs submit failed");
+
+      update({ proofRequestId: data.requestId });
+      setPhase("polling");
+
+      const expiresAtMs = data.expiresAt * 1000;
+      while (Date.now() < expiresAtMs) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const { data: poll } = await api.GET("/proofs/{requestId}", { params: { path: { requestId: data.requestId } } });
+        if (!poll) continue;
+        setProgress((p) => Math.min(95, p + 4));
+        if (poll.status === "fulfilled" && poll.receipt) {
+          update({ proofReceipt: poll.receipt as SubmitFlowState["proofReceipt"] });
+          setProgress(100);
+          setPhase("done");
+          return;
+        }
+        if (poll.status === "failed" || poll.status === "expired") throw new Error(`proof ${poll.status}: ${poll.error ?? ""}`);
+      }
+      throw new Error("proof did not fulfill before expires_at");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+      setPhase("error");
+    }
+  };
+
+  useEffect(() => { if (phase === "idle") start(); /* run once */ // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div>
+      <div className="mb-2 font-mono text-[10.5px] uppercase tracking-[0.22em] text-amber">04 — Generate Zero-Knowledge Proof</div>
+      <h2 className="font-serif-disp text-4xl md:text-5xl text-paper leading-tight mb-3">Prove membership without revealing identity.</h2>
+
+      <div className="border border-rule2 bg-panel p-6 md:p-8 file-corners">
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3">
+            {phase === "done" ? "Proof complete" : phase === "error" ? "Failed" : "Generating proof"}
+          </div>
+          <div className="font-mono text-[11px] text-paper tnum">{phase === "done" ? 100 : progress}%</div>
+        </div>
+        <div className="h-[3px] bg-rule2 mb-7 relative overflow-hidden">
+          <div className="absolute inset-y-0 left-0 bg-amber transition-all" style={{ width: `${phase === "done" ? 100 : progress}%` }} />
+        </div>
+
+        <ProofGrid active={phase === "polling" || phase === "submitting"} />
+
+        {phase === "error" && (
+          <div className="mt-5 font-mono text-[11px] text-alert">{err}</div>
+        )}
+        {phase === "error" && (
+          <Btn kind="primary" size="md" className="mt-4" onClick={start}>retry</Btn>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProofGrid({ active }: { active: boolean }) {
+  const [cells, setCells] = useState<number[]>(() => Array(64).fill(0));
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (!active) return;
+    intervalRef.current = setInterval(() => {
+      setCells((prev) => prev.map(() => Math.random() < 0.18 ? (Math.random() < 0.4 ? 2 : 1) : 0));
+    }, 80);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [active]);
+  const doubled = [...cells, ...cells];
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(32, minmax(0,1fr))", gap: "2px" }}>
+      {doubled.map((v, i) => (
+        <div key={i} className="aspect-square" style={{ background: v === 2 ? "#682eb3" : v === 1 ? "#26292b" : "#14171a" }} />
+      ))}
+    </div>
+  );
+}
+
+function Step5(_p: { state: SubmitFlowState }) {
+  return <div className="font-mono text-[11px] text-paper3 uppercase tracking-[0.18em]">Step 5 lands in Task 26.</div>;
 }
