@@ -1,74 +1,168 @@
 [
   {
     "type": "constructor",
-    "inputs": [{ "name": "registry_", "type": "address" }],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "resolve",
     "inputs": [
-      { "name": "name", "type": "bytes" },
-      { "name": "data", "type": "bytes" }
+      {
+        "name": "registry_",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    "outputs": [{ "name": "", "type": "bytes" }],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "supportsInterface",
-    "inputs": [{ "name": "id", "type": "bytes4" }],
-    "outputs": [{ "name": "", "type": "bool" }],
-    "stateMutability": "pure"
-  },
-  {
-    "type": "function",
-    "name": "setText",
-    "inputs": [
-      { "name": "parentNode", "type": "bytes32" },
-      { "name": "key",        "type": "string"  },
-      { "name": "value",      "type": "string"  }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setSubText",
-    "inputs": [
-      { "name": "parentNode", "type": "bytes32" },
-      { "name": "subnode",    "type": "bytes32" },
-      { "name": "key",        "type": "string"  },
-      { "name": "value",      "type": "string"  }
-    ],
-    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
     "name": "parentText",
     "inputs": [
-      { "name": "", "type": "bytes32" },
-      { "name": "", "type": "string"  }
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
     ],
-    "outputs": [{ "name": "", "type": "string" }],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "subText",
-    "inputs": [
-      { "name": "", "type": "bytes32" },
-      { "name": "", "type": "string"  }
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
     ],
-    "outputs": [{ "name": "", "type": "string" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "registry",
     "inputs": [],
-    "outputs": [{ "name": "", "type": "address" }],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract ICompanyRegistryMin"
+      }
+    ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "resolve",
+    "inputs": [
+      {
+        "name": "name",
+        "type": "bytes",
+        "internalType": "bytes"
+      },
+      {
+        "name": "data",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setSubText",
+    "inputs": [
+      {
+        "name": "parentNode",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "subnode",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "key",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setText",
+    "inputs": [
+      {
+        "name": "parentNode",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "key",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "subText",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "supportsInterface",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "pure"
   }
 ]

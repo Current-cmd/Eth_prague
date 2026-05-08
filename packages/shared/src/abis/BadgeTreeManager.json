@@ -1,44 +1,93 @@
 [
   {
     "type": "constructor",
-    "inputs": [{ "name": "registry_", "type": "address" }],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "event",
-    "name": "RootRotated",
     "inputs": [
-      { "name": "ensNode",  "type": "bytes32", "indexed": true  },
-      { "name": "newRoot",  "type": "bytes32", "indexed": false },
-      { "name": "prevRoot", "type": "bytes32", "indexed": false }
+      {
+        "name": "registry_",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    "anonymous": false
-  },
-  {
-    "type": "function",
-    "name": "rotateRoot",
-    "inputs": [
-      { "name": "ensNode",  "type": "bytes32" },
-      { "name": "newRoot",  "type": "bytes32" }
-    ],
-    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
     "name": "isRootFresh",
     "inputs": [
-      { "name": "ensNode", "type": "bytes32" },
-      { "name": "root",    "type": "bytes32" }
+      {
+        "name": "ensNode",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "root",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
     ],
-    "outputs": [{ "name": "", "type": "bool" }],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "registry",
     "inputs": [],
-    "outputs": [{ "name": "", "type": "address" }],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract ICompanyRegistry"
+      }
+    ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "rotateRoot",
+    "inputs": [
+      {
+        "name": "ensNode",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "newRoot",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "RootRotated",
+    "inputs": [
+      {
+        "name": "ensNode",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "newRoot",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "prevRoot",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
   }
 ]
