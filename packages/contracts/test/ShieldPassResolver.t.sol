@@ -22,7 +22,7 @@ contract ShieldPassResolverTest is Test {
 
     function setUp() public {
         cr = new CompanyRegistry();
-        resolver = new ShieldPassResolver(address(cr));
+        resolver = new ShieldPassResolver(address(cr), address(0x42));
         cr.register(ACME_NODE, ADMIN);
     }
 
@@ -121,5 +121,72 @@ contract ShieldPassResolverTest is Test {
         bytes memory data = abi.encodeWithSelector(bytes4(0xDEADBEEF), bytes32(0), "key");
         bytes memory result = resolver.resolve(_workerDnsName(), data);
         assertEq(result.length, 0);
+    // -------------------------------------------------------------
+    // SpaceComputer KMS & Two-Tier Badge System Tests
+    // -------------------------------------------------------------
+
+    function test_kms_initialization() public view {
+        assertEq(resolver.spaceComputerKMS(), address(0x42));
+        assertEq(resolver.owner(), address(this));
+    }
+
+    function test_setActiveBadgeRoot_success() public {
+        bytes32 newRoot = keccak256("new-active-root");
+        vm.prank(address(0x42));
+        resolver.setActiveBadgeRoot(ACME_NODE, newRoot);
+        assertEq(resolver.activeBadgeRoot(ACME_NODE), newRoot);
+    }
+
+    function test_setActiveBadgeRoot_reverts_notKMS() public {
+        bytes32 newRoot = keccak256("new-active-root");
+        vm.prank(ADMIN);
+        vm.expectRevert("not-kms");
+        resolver.setActiveBadgeRoot(ACME_NODE, newRoot);
+    }
+
+    function test_setAllTimeBadgeRoot_success() public {
+        bytes32 newRoot = keccak256("new-all-time-root");
+        vm.prank(address(0x42));
+        resolver.setAllTimeBadgeRoot(ACME_NODE, newRoot);
+        assertEq(resolver.allTimeBadgeRoot(ACME_NODE), newRoot);
+    }
+
+    function test_setAllTimeBadgeRoot_reverts_notKMS() public {
+        bytes32 newRoot = keccak256("new-all-time-root");
+        vm.prank(ADMIN);
+        vm.expectRevert("not-kms");
+        resolver.setAllTimeBadgeRoot(ACME_NODE, newRoot);
+    }
+
+    function test_kms_rotation_flow() public {
+        address newKms = address(0x99);
+        
+        // 1. Propose new KMS (only owner)
+        vm.prank(address(this));
+        resolver.proposeKMS(newKms);
+        assertEq(resolver.pendingSpaceComputerKMS(), newKms);
+
+        // 2. Accept new KMS (only pending KMS)
+        vm.prank(newKms);
+        resolver.acceptKMS();
+        
+        assertEq(resolver.spaceComputerKMS(), newKms);
+        assertEq(resolver.pendingSpaceComputerKMS(), address(0));
+
+        // 3. Verify old KMS cannot update roots
+        vm.prank(address(0x42));
+        vm.expectRevert("not-kms");
+        resolver.setActiveBadgeRoot(ACME_NODE, keccak256("test"));
+
+        // 4. Verify new KMS can update roots
+        vm.prank(newKms);
+        resolver.setActiveBadgeRoot(ACME_NODE, keccak256("test"));
+        assertEq(resolver.activeBadgeRoot(ACME_NODE), keccak256("test"));
+    }
+
+    function test_proposeKMS_reverts_notOwner() public {
+        vm.prank(ADMIN);
+        vm.expectRevert("not-owner");
+        resolver.proposeKMS(address(0x99));
     }
 }

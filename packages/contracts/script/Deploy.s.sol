@@ -20,7 +20,7 @@ contract Deploy is Script {
             bytes32(vm.envUint("IMAGE_ID")),
             address(btm)
         );
-        ShieldPassResolver res = new ShieldPassResolver(address(cr));
+        ShieldPassResolver res = new ShieldPassResolver(address(cr), msg.sender);
 
         vm.stopBroadcast();
 

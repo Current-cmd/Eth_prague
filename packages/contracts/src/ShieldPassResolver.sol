@@ -18,13 +18,64 @@ contract ShieldPassResolver is IExtendedResolver, IERC165 {
     mapping(bytes32 => mapping(string => string)) public parentText;
     mapping(bytes32 => mapping(string => string)) public subText;
 
-    constructor(address registry_) { registry = ICompanyRegistryMin(registry_); }
+    // Feature 1: SpaceComputer KMS
+    address public spaceComputerKMS;
+    address public owner;
+    address public pendingSpaceComputerKMS;
+
+    // Feature 2: Two-Tier Badge Tree System
+    mapping(bytes32 => bytes32) public activeBadgeRoot;
+    mapping(bytes32 => bytes32) public allTimeBadgeRoot;
+
+    event KMSRotated(address indexed oldKMS, address indexed newKMS);
+    event ActiveBadgeRootUpdated(bytes32 indexed node, bytes32 newRoot);
+    event AllTimeBadgeRootUpdated(bytes32 indexed node, bytes32 newRoot);
+
+    constructor(address registry_, address initialKMS) { 
+        registry = ICompanyRegistryMin(registry_); 
+        spaceComputerKMS = initialKMS;
+        owner = msg.sender;
+    }
 
     modifier onlyAdmin(bytes32 parentNode) {
         require(msg.sender == registry.adminOf(parentNode), "not-admin");
         _;
     }
 
+    modifier onlyOwner() {
+        require(msg.sender == owner, "not-owner");
+        _;
+    }
+
+    modifier onlySpaceComputerKMS() {
+        require(msg.sender == spaceComputerKMS, "not-kms");
+        _;
+    }
+
+    // Secure KMS Rotation
+    function proposeKMS(address newKMS) external onlyOwner {
+        pendingSpaceComputerKMS = newKMS;
+    }
+
+    function acceptKMS() external {
+        require(msg.sender == pendingSpaceComputerKMS, "not-pending-kms");
+        emit KMSRotated(spaceComputerKMS, pendingSpaceComputerKMS);
+        spaceComputerKMS = pendingSpaceComputerKMS;
+        pendingSpaceComputerKMS = address(0);
+    }
+
+    // Root management
+    function setActiveBadgeRoot(bytes32 node, bytes32 root) external onlySpaceComputerKMS {
+        activeBadgeRoot[node] = root;
+        emit ActiveBadgeRootUpdated(node, root);
+    }
+
+    function setAllTimeBadgeRoot(bytes32 node, bytes32 root) external onlySpaceComputerKMS {
+        allTimeBadgeRoot[node] = root;
+        emit AllTimeBadgeRootUpdated(node, root);
+    }
+
+    // Keep existing text functionality for normal ENS resolution
     function setText(bytes32 parentNode, string calldata key, string calldata value)
         external onlyAdmin(parentNode)
     { parentText[parentNode][key] = value; }
