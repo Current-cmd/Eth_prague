@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-// NOTE: ICompanyRegistry is not inherited to avoid duplicate event declaration;
-// CompanyRegistry satisfies the interface structurally (same function signatures).
-contract CompanyRegistry {
-    event CompanyRegistered(bytes32 indexed ensNode, address admin);
+import {ICompanyRegistry} from "./interfaces/ICompanyRegistry.sol";
+
+contract CompanyRegistry is ICompanyRegistry {
 
     struct Company { address admin; bool active; uint64 registeredAt; }
     mapping(bytes32 => Company) public companies;

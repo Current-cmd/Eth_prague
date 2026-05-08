@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {CompanyRegistry} from "../src/CompanyRegistry.sol";
+import {ICompanyRegistry} from "../src/interfaces/ICompanyRegistry.sol";
 
 contract CompanyRegistryTest is Test {
     CompanyRegistry cr;
@@ -30,7 +31,7 @@ contract CompanyRegistryTest is Test {
 
     function test_emit_on_register() public {
         vm.expectEmit(true, false, false, true);
-        emit CompanyRegistry.CompanyRegistered(NODE, address(this));
+        emit ICompanyRegistry.CompanyRegistered(NODE, address(this));
         cr.register(NODE, address(this));
     }
 }
