@@ -1,0 +1,17 @@
+[package]
+name = "shieldpass-guest"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+# risc0-zkvm guest is no_std by default
+risc0-zkvm = { workspace = true, default-features = false, features = ["std"] }
+alloy-sol-types = { workspace = true, default-features = false }
+alloy-primitives = { workspace = true, default-features = false }
+light-poseidon = { workspace = true, default-features = false }
+ark-bn254 = { workspace = true, default-features = false }
+ark-ff = { workspace = true, default-features = false, features = ["alloc"] }
+serde = { workspace = true, default-features = false, features = ["alloc", "derive"] }
+
+[lib]
+path = "main.rs"

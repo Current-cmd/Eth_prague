@@ -1,0 +1,17 @@
+{
+  "name": "shieldpass",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r --filter './packages/**' build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "dev": "pnpm --filter backend dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "prettier": "^3.5.0",
+    "eslint": "^9.18.0"
+  },
+  "packageManager": "pnpm@10.0.0"
+}

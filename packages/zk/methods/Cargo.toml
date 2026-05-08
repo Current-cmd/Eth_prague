@@ -1,0 +1,19 @@
+[package]
+name = "shieldpass-methods"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+risc0-zkvm = { workspace = true }
+alloy-sol-types = { workspace = true }
+alloy-primitives = { workspace = true }
+light-poseidon = { workspace = true, features = ["alloc"] }
+ark-bn254 = { workspace = true }
+ark-ff = { workspace = true, features = ["alloc"] }
+serde = { workspace = true, features = ["alloc", "derive"] }
+
+[dev-dependencies]
+risc0-zkvm = { workspace = true, features = ["client"] }
