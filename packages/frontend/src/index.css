@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  background: #0a1330;
+  color: #e8edf6;
+}
+body {
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-serif-disp {
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+/* Override Tailwind's mono with Bricolage (design intent: unified type) */
+.font-mono {
+  font-family: "Bricolage Grotesque", system-ui, sans-serif !important;
+  font-feature-settings: "tnum";
+  letter-spacing: 0.01em;
+}
+
+/* Grain noise overlay */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Scanline accent */
+.scanline {
+  background-image: linear-gradient(transparent 50%, rgba(255,255,255,0.018) 50%);
+  background-size: 100% 3px;
+}
+
+/* Corner softening — broad design choice */
+button { border-radius: 10px; }
+textarea, input { border-radius: 10px; }
+.stripe-placeholder { border-radius: 10px; }
+.file-corners { border-radius: 14px; }
+.rounded-full { border-radius: 9999px !important; }
+.rounded-2xl { border-radius: 18px !important; }
+
+/* Redacted block reveal */
+@keyframes redact-reveal {
+  0%   { background-color: #0e1011; color: transparent; }
+  60%  { background-color: #0e1011; color: transparent; }
+  100% { background-color: transparent; color: inherit; }
+}
+.redact-reveal { animation: redact-reveal .9s ease-out both; }
+
+/* Blinking cursor */
+@keyframes blink { 50% { opacity: 0; } }
+.blink { animation: blink 1s steps(1) infinite; }
+
+/* Page enter */
+@keyframes page-enter {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.page-enter { animation: page-enter .35s cubic-bezier(.2,.7,.2,1) both; }
+
+/* Step enter */
+@keyframes step-enter {
+  0%   { opacity: 0; transform: translateY(8px); filter: blur(2px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.step-enter { animation: step-enter .42s cubic-bezier(.2,.7,.2,1) both; }
+
+/* Indeterminate progress sweep */
+@keyframes progress-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.progress-sweep { animation: progress-sweep 1.6s cubic-bezier(.4,0,.2,1) infinite; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1f2c5d; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #2e3e7a; }
+
+/* Selection highlight */
+::selection { background: #682eb3; color: #e8edf6; }
+
+/* Diagonal stripe fill */
+.stripe-placeholder {
+  background-image: repeating-linear-gradient(135deg, #182455 0 8px, #131e44 8px 16px);
+}
+
+/* Redaction bar */
+.redact-bar {
+  background: #0a1330;
+  color: transparent;
+  text-shadow: none;
+}
+
+/* Tabular numbers */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* File envelope corner ticks */
+.file-corners {
+  background-image:
+    linear-gradient(#2e3e7a,#2e3e7a), linear-gradient(#2e3e7a,#2e3e7a),
+    linear-gradient(#2e3e7a,#2e3e7a), linear-gradient(#2e3e7a,#2e3e7a),
+    linear-gradient(#2e3e7a,#2e3e7a), linear-gradient(#2e3e7a,#2e3e7a),
+    linear-gradient(#2e3e7a,#2e3e7a), linear-gradient(#2e3e7a,#2e3e7a);
+  background-size: 1px 12px, 12px 1px, 1px 12px, 12px 1px, 1px 12px, 12px 1px, 1px 12px, 12px 1px;
+  background-position: 0 0, 0 0, 100% 0, calc(100% - 12px) 0, 0 100%, 0 calc(100% - 1px), 100% 100%, calc(100% - 12px) 100%;
+  background-repeat: no-repeat;
+}
+
+/* Hover lift */
+.hover-lift {
+  transition: transform .18s ease, border-color .18s ease, background-color .18s ease;
+}
+.hover-lift:hover { transform: translateY(-1px); }
+
+/* Modal backdrop */
+.modal-back {
+  backdrop-filter: blur(6px) saturate(110%);
+  -webkit-backdrop-filter: blur(6px) saturate(110%);
+}
