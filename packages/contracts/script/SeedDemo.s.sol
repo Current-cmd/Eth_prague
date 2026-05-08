@@ -31,14 +31,13 @@ contract SeedDemo is Script {
         uint256 key      = vm.envUint("DEPLOYER_PRIVATE_KEY");
 
         CompanyRegistry    cr  = CompanyRegistry(vm.envAddress("COMPANY_REGISTRY"));
-        BadgeTreeManager   btm = BadgeTreeManager(vm.envAddress("BADGE_TREE_MANAGER"));
         ShieldPassResolver res = ShieldPassResolver(vm.envAddress("SHIELDPASS_RESOLVER"));
 
         vm.startBroadcast(key);
 
         (bytes32 acmeNode, bytes32 workersAcmeNode) = _setupENS(deployer, res);
         _registerCompany(cr, acmeNode, deployer);
-        bytes32 demoRoot = _buildAndRotateTree(btm, acmeNode);
+        bytes32 demoRoot = _buildAndRotateTree(res, acmeNode);
         _setTextRecords(acmeNode, demoRoot, deployer);
         _setWorkerRecords(res, acmeNode, workersAcmeNode);
 
@@ -73,7 +72,7 @@ contract SeedDemo is Script {
         }
     }
 
-    function _buildAndRotateTree(BadgeTreeManager btm, bytes32 acmeNode)
+    function _buildAndRotateTree(ShieldPassResolver res, bytes32 acmeNode)
         internal
         returns (bytes32 demoRoot)
     {
@@ -98,7 +97,9 @@ contract SeedDemo is Script {
 
         demoRoot = bytes32(nodes[0]);
         console2.log("Demo Merkle root:", vm.toString(demoRoot));
-        btm.rotateRoot(acmeNode, demoRoot);
+        // Push root to both active and all-time trees via KMS-gated resolver
+        res.setActiveBadgeRoot(acmeNode, demoRoot);
+        res.setAllTimeBadgeRoot(acmeNode, demoRoot);
     }
 
     function _setTextRecords(bytes32 acmeNode, bytes32 demoRoot, address deployer) internal {
