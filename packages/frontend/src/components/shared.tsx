@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { TAXONOMY } from '../data'
+import { CATEGORY_META } from "../lib/categoryMeta";
+import type { ReportCategory } from "@shieldpass/shared/enums";
 
 // ── Format helpers ─────────────────────────────────────────────────────────
 
@@ -119,28 +120,26 @@ export function Badge({ tone = 'neutral', children, dot = false, className = '' 
 }
 
 interface CategoryBadgeProps {
-  category: string
-  size?: 'sm' | 'md'
+  category: ReportCategory;
+  size?: 'sm' | 'md';
 }
 
 export function CategoryBadge({ category, size = 'md' }: CategoryBadgeProps) {
-  const t = TAXONOMY.find(c => c.id === category)
-  if (!t) return null
-  const toneMap: Record<string, string> = {
-    misconduct: 'border-alert/70 text-alert',
-    selective:  'border-amber/60 text-amber',
-    misclass:   'border-amber/60 text-amber',
-    hollow:     'border-rule2 text-paper2',
-    inname:     'border-rule2 text-paper2',
-    misleading: 'border-amber/60 text-amber',
-  }
-  const sz = size === 'sm' ? 'h-5 text-[10px] px-2' : 'h-6 text-[10.5px] px-2.5'
+  const meta = CATEGORY_META[category];
+  if (!meta) return null;
+  const toneClass: Record<typeof meta.tone, string> = {
+    alert:   'border-alert/70 text-alert',
+    amber:   'border-amber/60 text-amber',
+    verify:  'border-verify/60 text-verify',
+    neutral: 'border-rule2 text-paper2',
+  };
+  const sz = size === 'sm' ? 'h-5 text-[10px] px-2' : 'h-6 text-[10.5px] px-2.5';
   return (
-    <span className={`inline-flex items-center gap-2 ${sz} border ${toneMap[category] ?? 'border-rule2 text-paper2'} font-mono uppercase tracking-[0.18em]`}>
-      <span className="text-[12px] leading-none">{t.glyph}</span>
-      <span>{t.label}</span>
+    <span className={`inline-flex items-center gap-2 ${sz} border ${toneClass[meta.tone]} font-mono uppercase tracking-[0.18em]`}>
+      <span className="text-[12px] leading-none">{meta.glyph}</span>
+      <span>{meta.label}</span>
     </span>
-  )
+  );
 }
 
 // ── Status pill ────────────────────────────────────────────────────────────
