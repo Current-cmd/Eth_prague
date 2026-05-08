@@ -1,0 +1,26 @@
+{
+  "name": "@shieldpass/backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0",
+    "@shieldpass/shared": "workspace:*",
+    "@pinata/sdk": "^2.2",
+    "better-sqlite3": "^11.8",
+    "fastify": "^5.3",
+    "viem": "^2.22"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6",
+    "@types/node": "^22.10",
+    "tsx": "^4.20",
+    "typescript": "^5.8",
+    "vitest": "^3.0"
+  }
+}

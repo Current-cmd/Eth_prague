@@ -1,0 +1,527 @@
+openapi: 3.1.0
+info:
+  title: ShieldPass Backend API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8787/v1
+  - url: https://api.shieldpass.xyz/v1
+
+components:
+  schemas:
+    Hex32:
+      type: string
+      pattern: '^0x[0-9a-fA-F]{64}$'
+
+    Address:
+      type: string
+      pattern: '^0x[0-9a-fA-F]{40}$'
+
+    EnsName:
+      type: string
+      pattern: '^[a-z0-9-]+(\.[a-z0-9-]+)+$'
+
+    Cid:
+      type: string
+      pattern: '^(bafy|bafk|bafz|baf[a-z]|Qm)[A-Za-z0-9]+$'
+      minLength: 46
+
+    ReportCategory:
+      type: string
+      enum: [Misconduct, SelectiveDisclosure, Misclassification, HollowPromise, InNameOnly, MisleadingPresentation]
+
+    Company:
+      type: object
+      required: [ensName, ensNode, admin, active, badgeTreeRoot, registeredAt]
+      properties:
+        ensName:
+          $ref: '#/components/schemas/EnsName'
+        ensNode:
+          $ref: '#/components/schemas/Hex32'
+        admin:
+          $ref: '#/components/schemas/Address'
+        active:
+          type: boolean
+        badgeTreeRoot:
+          $ref: '#/components/schemas/Hex32'
+        rootHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/Hex32'
+        registeredAt:
+          type: integer
+          format: int64
+
+    EvidenceItem:
+      type: object
+      required: [cid, filename, mime, sha256]
+      properties:
+        cid:
+          $ref: '#/components/schemas/Cid'
+        filename:
+          type: string
+        mime:
+          type: string
+        sha256:
+          $ref: '#/components/schemas/Hex32'
+        sanitized:
+          type: object
+          properties:
+            tool:
+              type: string
+            version:
+              type: string
+
+    ReportPayload:
+      type: object
+      required: [version, company, category, title, summary, structuredFields, evidence, submittedAt, pseudonym]
+      properties:
+        version:
+          type: integer
+          const: 1
+        company:
+          type: object
+          required: [ensName, ensNode]
+          properties:
+            ensName:
+              $ref: '#/components/schemas/EnsName'
+            ensNode:
+              $ref: '#/components/schemas/Hex32'
+        category:
+          $ref: '#/components/schemas/ReportCategory'
+        title:
+          type: string
+          maxLength: 200
+        summary:
+          type: string
+          maxLength: 1000
+        structuredFields:
+          type: object
+          additionalProperties: true
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceItem'
+        submittedAt:
+          type: string
+          format: date-time
+        pseudonym:
+          $ref: '#/components/schemas/EnsName'
+
+    ProofRequest:
+      type: object
+      required: [ensNode, reportHash, periodId, badge, merklePath, merkleIndices]
+      properties:
+        ensNode:
+          $ref: '#/components/schemas/Hex32'
+        reportHash:
+          $ref: '#/components/schemas/Hex32'
+        periodId:
+          type: integer
+          format: int64
+        badge:
+          $ref: '#/components/schemas/Hex32'
+        merklePath:
+          type: array
+          items:
+            $ref: '#/components/schemas/Hex32'
+        merkleIndices:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 1
+
+    ProofJob:
+      type: object
+      required: [requestId, status, expiresAt]
+      properties:
+        requestId:
+          type: string
+        status:
+          type: string
+          enum: [queued, fulfilled, failed, expired]
+        expiresAt:
+          type: integer
+          format: int64
+        receipt:
+          $ref: '#/components/schemas/ProofReceipt'
+        error:
+          type: string
+
+    ProofReceipt:
+      type: object
+      required: [seal, imageId, journal]
+      properties:
+        seal:
+          type: string
+        imageId:
+          $ref: '#/components/schemas/Hex32'
+        journal:
+          type: object
+          required: [root, reportHash, nullifier, periodId, ensNode]
+          properties:
+            root:
+              $ref: '#/components/schemas/Hex32'
+            reportHash:
+              $ref: '#/components/schemas/Hex32'
+            nullifier:
+              $ref: '#/components/schemas/Hex32'
+            periodId:
+              type: integer
+              format: int64
+            ensNode:
+              $ref: '#/components/schemas/Hex32'
+
+    Report:
+      type: object
+      required: [reportHash, ensNode, nullifier, rootUsed, cid, category, submittedAt, pseudonymNode, txHash, blockNumber]
+      properties:
+        reportHash:
+          $ref: '#/components/schemas/Hex32'
+        ensNode:
+          $ref: '#/components/schemas/Hex32'
+        nullifier:
+          $ref: '#/components/schemas/Hex32'
+        rootUsed:
+          $ref: '#/components/schemas/Hex32'
+        cid:
+          $ref: '#/components/schemas/Cid'
+        category:
+          $ref: '#/components/schemas/ReportCategory'
+        submittedAt:
+          type: integer
+          format: int64
+        pseudonymNode:
+          $ref: '#/components/schemas/Hex32'
+        txHash:
+          $ref: '#/components/schemas/Hex32'
+        blockNumber:
+          type: integer
+          format: int64
+        payload:
+          $ref: '#/components/schemas/ReportPayload'
+        contextPackCid:
+          type: string
+          nullable: true
+
+    PinResult:
+      type: object
+      required: [cid, size]
+      properties:
+        cid:
+          $ref: '#/components/schemas/Cid'
+        size:
+          type: integer
+
+    PaymentRequirements:
+      type: object
+      required: [scheme, network, asset, amount, payTo, resource, maxTimeoutSeconds]
+      properties:
+        scheme:
+          type: string
+          example: 'exact'
+        network:
+          type: string
+          example: 'eip155:8453'
+        asset:
+          $ref: '#/components/schemas/Address'
+        amount:
+          type: string
+          example: '1000000'
+        payTo:
+          $ref: '#/components/schemas/Address'
+        resource:
+          type: string
+        maxTimeoutSeconds:
+          type: integer
+          minimum: 60
+        extra:
+          type: object
+          additionalProperties: true
+
+    PaymentChallenge:
+      type: object
+      required: [x402Version, accepted]
+      properties:
+        x402Version:
+          type: integer
+          const: 2
+        accepted:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentRequirements'
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+paths:
+  /healthz:
+    get:
+      summary: Liveness
+      responses:
+        '200':
+          description: OK
+
+  /companies:
+    get:
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - in: query
+          name: cursor
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Company'
+                  nextCursor:
+                    type: string
+                    nullable: true
+
+  /companies/{ensName}:
+    get:
+      parameters:
+        - in: path
+          name: ensName
+          required: true
+          schema:
+            $ref: '#/components/schemas/EnsName'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '404':
+          description: Not found
+
+  /ipfs/pin:
+    post:
+      summary: Pin sanitized file to IPFS
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                filename:
+                  type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PinResult'
+
+  /ipfs/pin-json:
+    post:
+      summary: Pin canonical report JSON, return cid + reportHash
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportPayload'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cid, reportHash]
+                properties:
+                  cid:
+                    $ref: '#/components/schemas/Cid'
+                  reportHash:
+                    $ref: '#/components/schemas/Hex32'
+
+  /proofs:
+    post:
+      summary: Submit proof request (async). Returns 202 + requestId.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProofRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProofJob'
+
+  /proofs/{requestId}:
+    get:
+      summary: Poll proof status
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProofJob'
+        '404':
+          description: Not found
+
+  /reports:
+    get:
+      parameters:
+        - in: query
+          name: company
+          schema:
+            $ref: '#/components/schemas/EnsName'
+        - in: query
+          name: category
+          schema:
+            $ref: '#/components/schemas/ReportCategory'
+        - in: query
+          name: since
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 25
+            maximum: 100
+        - in: query
+          name: cursor
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+                  nextCursor:
+                    type: string
+                    nullable: true
+
+  /reports/{reportHash}:
+    get:
+      parameters:
+        - in: path
+          name: reportHash
+          required: true
+          schema:
+            $ref: '#/components/schemas/Hex32'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '404':
+          description: Not found
+
+  /reports/{reportHash}/contextPack:
+    post:
+      summary: Apify Context Pack (X402-gated). 402 first; second call with PAYMENT-SIGNATURE returns 202.
+      parameters:
+        - in: path
+          name: reportHash
+          required: true
+          schema:
+            $ref: '#/components/schemas/Hex32'
+      responses:
+        '402':
+          description: Payment required (x402)
+          headers:
+            PAYMENT-REQUIRED:
+              schema:
+                type: string
+              description: 'base64(JSON PaymentChallenge)'
+            X-APIFY-PAYMENT-PROTOCOL:
+              schema:
+                type: string
+              description: 'X402'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentChallenge'
+        '202':
+          description: Enrichment scheduled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [contextPackCid]
+                properties:
+                  contextPackCid:
+                    $ref: '#/components/schemas/Cid'
+
+  /pseudonyms/{pseudonymNode}/stats:
+    get:
+      parameters:
+        - in: path
+          name: pseudonymNode
+          required: true
+          schema:
+            $ref: '#/components/schemas/Hex32'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pseudonymNode, reportsCount, verifiedCount, debunkedCount]
+                properties:
+                  pseudonymNode:
+                    $ref: '#/components/schemas/Hex32'
+                  reportsCount:
+                    type: integer
+                  verifiedCount:
+                    type: integer
+                  debunkedCount:
+                    type: integer
