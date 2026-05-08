@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useNavigate } from "react-router-dom";
 import type { Hex } from "viem";
 import { ReportCategory } from "@shieldpass/shared/enums";
+import { SEPOLIA_ADDRESSES } from "@shieldpass/shared/chain";
+import { ReportRegistryAbi } from "@shieldpass/shared/abis";
 import { ConnectButton } from "../components/ConnectButton";
 import { BadgePicker } from "../components/BadgePicker";
 import { AnonMark, Btn } from "../components/shared";
@@ -494,6 +497,84 @@ function ProofGrid({ active }: { active: boolean }) {
   );
 }
 
-function Step5(_p: { state: SubmitFlowState }) {
-  return <div className="font-mono text-[11px] text-paper3 uppercase tracking-[0.18em]">Step 5 lands in Task 26.</div>;
+function Step5({ state }: { state: SubmitFlowState }) {
+  const [confirmed, setConfirmed] = useState(false);
+  const navigate = useNavigate();
+  const { writeContract, data: txHash, isPending: writing, error: writeErr } = useWriteContract();
+  const { isLoading: confirming, isSuccess: confirmed_, data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
+
+  useEffect(() => {
+    if (confirmed_ && state.reportHash) navigate(`/reports/${state.reportHash}`);
+  }, [confirmed_, state.reportHash, navigate]);
+
+  if (!state.proofReceipt || !state.company || !state.reportHash || !state.pseudonymNode || !state.category) {
+    return <div className="font-mono text-[11px] text-alert">Missing earlier-step outputs.</div>;
+  }
+
+  const enumIndex = Object.values(ReportCategory).indexOf(state.category);
+  const j = state.proofReceipt.journal;
+
+  const submit = () => writeContract({
+    address: SEPOLIA_ADDRESSES.ReportRegistry,
+    abi: ReportRegistryAbi as any,
+    functionName: "submitReport",
+    args: [
+      state.proofReceipt!.seal,
+      j.root,
+      j.reportHash,
+      j.nullifier,
+      BigInt(j.periodId),
+      j.ensNode,
+      enumIndex,
+      state.pseudonymNode!,
+      state.payloadCid!,
+    ],
+  });
+
+  return (
+    <div>
+      <div className="mb-2 font-mono text-[10.5px] uppercase tracking-[0.22em] text-amber">05 — Final Review</div>
+      <h2 className="font-serif-disp text-4xl md:text-5xl text-paper leading-tight mb-3">Confirm and submit.</h2>
+
+      <div className="border border-rule2 file-corners bg-panel divide-y divide-rule">
+        <Row label="Category">{state.category}</Row>
+        <Row label="ENS">{state.pseudonym}.workers.{state.company.ensName}</Row>
+        <Row label="Report hash">{state.reportHash}</Row>
+        <Row label="Payload CID">{state.payloadCid}</Row>
+        <Row label="Root used">{j.root}</Row>
+        <Row label="Period ID">{String(j.periodId)}</Row>
+      </div>
+
+      <label className="mt-6 flex items-start gap-3 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={confirmed}
+          onChange={(e) => setConfirmed(e.target.checked)}
+          className="mt-1 w-4 h-4 border border-rule2"
+          style={{ borderRadius: 0 }}
+        />
+        <span className="text-[13px] text-paper2 max-w-[60ch] leading-snug">
+          I understand this disclosure publishes on-chain and cannot be retracted.
+        </span>
+      </label>
+
+      <div className="mt-6 flex justify-end">
+        <Btn kind="primary" size="lg" disabled={!confirmed || writing || confirming} onClick={submit}>
+          {writing ? "Confirm in wallet…" : confirming ? "Waiting for tx…" : "Submit Report ⤤"}
+        </Btn>
+      </div>
+
+      {writeErr && <div className="mt-4 font-mono text-[11px] text-alert">{writeErr.message}</div>}
+      {receipt && <div className="mt-4 font-mono text-[11px] text-verify">tx: {receipt.transactionHash}</div>}
+    </div>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] px-6 py-4 gap-2 md:gap-6">
+      <dt className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3 self-center">{label}</dt>
+      <dd className="self-center font-mono text-[12.5px] text-paper break-all">{children}</dd>
+    </div>
+  );
 }
