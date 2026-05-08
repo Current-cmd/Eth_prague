@@ -15,12 +15,12 @@ contract Deploy is Script {
 
         CompanyRegistry cr    = new CompanyRegistry();
         BadgeTreeManager btm  = new BadgeTreeManager(address(cr));
+        ShieldPassResolver res = new ShieldPassResolver(address(cr), msg.sender);
         ReportRegistry rr     = new ReportRegistry(
             vm.envAddress("RISC0_VERIFIER"),
             bytes32(vm.envUint("IMAGE_ID")),
-            address(btm)
+            address(res)
         );
-        ShieldPassResolver res = new ShieldPassResolver(address(cr), msg.sender);
 
         vm.stopBroadcast();
 

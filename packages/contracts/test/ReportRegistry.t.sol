@@ -3,19 +3,20 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {CompanyRegistry}  from "../src/CompanyRegistry.sol";
-import {BadgeTreeManager} from "../src/BadgeTreeManager.sol";
+import {ShieldPassResolver} from "../src/ShieldPassResolver.sol";
 import {ReportRegistry}   from "../src/ReportRegistry.sol";
 import {MockVerifier}     from "./MockVerifier.sol";
 import {IReportRegistry}  from "../src/interfaces/IReportRegistry.sol";
 
 contract ReportRegistryTest is Test {
     CompanyRegistry  cr;
-    BadgeTreeManager btm;
+    ShieldPassResolver res;
     ReportRegistry   rr;
     MockVerifier     mv;
 
     bytes32 constant NODE     = keccak256("acme.shieldpass-demo.eth");
     address constant ADMIN    = address(0xA11CE);
+    address constant KMS      = address(0x42);
     bytes32 constant IMAGE_ID = bytes32(uint256(0xBEEF));
 
     // Fixed witness vector
@@ -30,13 +31,13 @@ contract ReportRegistryTest is Test {
 
     function setUp() public {
         cr  = new CompanyRegistry();
-        btm = new BadgeTreeManager(address(cr));
+        res = new ShieldPassResolver(address(cr), KMS);
         mv  = new MockVerifier();
-        rr  = new ReportRegistry(address(mv), IMAGE_ID, address(btm));
-        // Register W_ENS_NODE (used in submit calls) and rotate W_ROOT for it
+        rr  = new ReportRegistry(address(mv), IMAGE_ID, address(res));
+        // Register W_ENS_NODE (used in submit calls) and set W_ROOT for it via KMS
         cr.register(W_ENS_NODE, ADMIN);
-        vm.prank(ADMIN);
-        btm.rotateRoot(W_ENS_NODE, W_ROOT);
+        vm.prank(KMS);
+        res.setActiveBadgeRoot(W_ENS_NODE, W_ROOT);
     }
 
     function test_journal_digest_fixed_vector() public pure {
@@ -67,7 +68,7 @@ contract ReportRegistryTest is Test {
 
     function test_stale_root_reverts() public {
         bytes32 staleRoot = bytes32(uint256(0xDEAD));
-        vm.expectRevert(bytes("STALE_ROOT"));
+        vm.expectRevert(bytes("INVALID_ROOT"));
         rr.submitReport(bytes(""), staleRoot, W_REPORT_HASH, W_NULLIFIER,
             W_PERIOD_ID, W_ENS_NODE, 0, bytes32(uint256(1)), "ipfs://x");
     }

@@ -2,20 +2,20 @@
 pragma solidity 0.8.26;
 
 import {IReportRegistry}  from "./interfaces/IReportRegistry.sol";
-import {IBadgeTreeManager}from "./interfaces/IBadgeTreeManager.sol";
 import {IRiscZeroVerifier}from "./interfaces/IRiscZeroVerifier.sol";
+import {ShieldPassResolver} from "./ShieldPassResolver.sol";
 
 contract ReportRegistry is IReportRegistry {
     IRiscZeroVerifier public immutable verifier;
     bytes32           public immutable imageId;
-    IBadgeTreeManager public immutable badges;
+    ShieldPassResolver public immutable resolver;
 
     mapping(bytes32 => bool) public override isNullifierUsed;
 
-    constructor(address verifier_, bytes32 imageId_, address badges_) {
+    constructor(address verifier_, bytes32 imageId_, address resolver_) {
         verifier = IRiscZeroVerifier(verifier_);
         imageId  = imageId_;
-        badges   = IBadgeTreeManager(badges_);
+        resolver = ShieldPassResolver(resolver_);
     }
 
     function submitReport(
@@ -30,7 +30,10 @@ contract ReportRegistry is IReportRegistry {
         string calldata cid
     ) external {
         require(!isNullifierUsed[nullifier], "NULLIFIER_USED");
-        require(badges.isRootFresh(ensNode, root), "STALE_ROOT");
+        
+        bytes32 activeRoot = resolver.activeBadgeRoot(ensNode);
+        bytes32 allTimeRoot = resolver.allTimeBadgeRoot(ensNode);
+        require(root == activeRoot || root == allTimeRoot, "INVALID_ROOT");
 
         // CRITICAL: field order must match guest env::commit_slice(JournalSol::abi_encode())
         // Do NOT reorder without coordinating with Agent B
