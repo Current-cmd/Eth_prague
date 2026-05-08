@@ -305,7 +305,7 @@ function Step3({ state, update }: { state: SubmitFlowState; update: (p: Partial<
       };
       const { data, error: e } = await api.POST("/ipfs/pin-json", { body: payload });
       if (e || !data) throw new Error("pin-json failed");
-      update({ payloadCid: data.cid, reportHash: data.reportHash });
+      update({ payloadCid: data.cid, reportHash: data.reportHash as `0x${string}` });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

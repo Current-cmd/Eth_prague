@@ -23,7 +23,7 @@ export default function CompanyAdmin() {
     args: ensNode ? [ensNode] : undefined,
   });
 
-  const isAdmin = admin && address && (admin as string).toLowerCase() === address.toLowerCase();
+  const isAdmin: boolean = !!(admin && address && (admin as string).toLowerCase() === address.toLowerCase());
   const [showRotate, setShowRotate] = useState(false);
 
   const reportsQ = useQuery({

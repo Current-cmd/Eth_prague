@@ -101,9 +101,9 @@ export default function ReportDetail() {
           <div className="border-t border-rule2 pt-5">
             <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-verify mb-3">Verification</div>
             <ProofStatus
-              ensNode={r.ensNode}
-              rootUsed={r.rootUsed}
-              nullifier={r.nullifier}
+              ensNode={r.ensNode as `0x${string}`}
+              rootUsed={r.rootUsed as `0x${string}`}
+              nullifier={r.nullifier as `0x${string}`}
               mode="detail"
             />
           </div>

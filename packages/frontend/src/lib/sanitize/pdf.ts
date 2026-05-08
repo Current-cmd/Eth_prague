@@ -26,6 +26,7 @@ export async function sanitizePdf(file: File): Promise<{ blob: Blob; sha256: Hex
   }
 
   const bytes = await doc.save({ useObjectStreams: false });
-  const blob = new Blob([bytes], { type: "application/pdf" });
+  // Cast to Uint8Array to satisfy strict BlobPart typing (TS 5.4+ ArrayBufferLike vs ArrayBuffer).
+  const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "application/pdf" });
   return { blob, sha256: await sha256OfBlob(blob) };
 }

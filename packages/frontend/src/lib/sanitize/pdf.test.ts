@@ -13,7 +13,7 @@ describe("sanitizePdf", () => {
     original.setCreator("Word for Mac 2024");
     original.addPage([300, 400]);
     const bytes = await original.save();
-    const file = new File([bytes], "test.pdf", { type: "application/pdf" });
+    const file = new File([bytes as Uint8Array<ArrayBuffer>], "test.pdf", { type: "application/pdf" });
 
     const { blob, sha256 } = await sanitizePdf(file);
     expect(blob.type).toBe("application/pdf");
