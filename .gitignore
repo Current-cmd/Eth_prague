@@ -42,3 +42,6 @@ pnpm-debug.log*
 
 # Build artifacts
 *.elf
+
+# Local Foundry Config
+remappings.txt

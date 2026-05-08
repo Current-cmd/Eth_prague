@@ -1,0 +1,2 @@
+[compiler.solc]
+target_version = "0.8.26"
