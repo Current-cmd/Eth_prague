@@ -1,1 +1,0 @@
-ALTER TABLE brokers ADD COLUMN updated_at TIMESTAMPTZ;

@@ -1,5 +1,0 @@
-version = 1
-name = "boundless"
-
-[setup]
-script = "bash .codex/setup-worktree-unix.sh"
