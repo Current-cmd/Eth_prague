@@ -5,6 +5,8 @@ import { ReportCategory } from "@shieldpass/shared/enums";
 import { ConnectButton } from "../components/ConnectButton";
 import { BadgePicker } from "../components/BadgePicker";
 import { AnonMark, Btn } from "../components/shared";
+import { sanitizeImage } from "../lib/sanitize/exif";
+import { sanitizePdf } from "../lib/sanitize/pdf";
 
 const STEPS = [
   { id: 1, label: "Sign In",  sub: "Wallet + badge" },
@@ -68,9 +70,10 @@ export default function Submit() {
       <div className="max-w-[860px] mx-auto px-6 lg:px-10 py-10">
         <div key={step} className="step-enter">
           {step === 1 && <Step1 state={state} update={update} />}
-          {step >= 2 && (
+          {step === 2 && <Step2 state={state} update={update} />}
+          {step >= 3 && (
             <div className="font-mono text-[11px] text-paper3 uppercase tracking-[0.18em]">
-              Step {step} content lands in subsequent tasks (23–26).
+              Step {step} content lands in subsequent tasks (24–26).
             </div>
           )}
         </div>
@@ -183,6 +186,92 @@ function Step1({ state, update }: { state: SubmitFlowState; update: (p: Partial<
           Loaded: <span className="text-paper">{state.pseudonym}.workers.{state.company?.ensName}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+function Step2({ state, update }: { state: SubmitFlowState; update: (p: Partial<SubmitFlowState>) => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setError(null);
+    setBusy(f.name);
+    try {
+      const { blob, sha256 } = f.type === "application/pdf"
+        ? await sanitizePdf(f)
+        : await sanitizeImage(f);
+
+      const fd = new FormData();
+      fd.append("file", blob, f.name);
+      fd.append("filename", f.name);
+      const res = await fetch(`${import.meta.env.VITE_API_BASE}/ipfs/pin`, { method: "POST", body: fd });
+      if (!res.ok) throw new Error(`pin failed: ${res.status}`);
+      const { cid } = await res.json() as { cid: string };
+
+      update({ evidence: [...state.evidence, { cid, filename: f.name, mime: blob.type, sha256 }] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removeOne = (cid: string) => update({ evidence: state.evidence.filter((e) => e.cid !== cid) });
+
+  return (
+    <div>
+      <div className="mb-2 font-mono text-[10.5px] uppercase tracking-[0.22em] text-amber">02 — Evidence</div>
+      <h2 className="font-serif-disp text-4xl md:text-5xl text-paper leading-tight mb-3">Attach files, then describe.</h2>
+      <p className="text-paper2 text-[15px] leading-relaxed max-w-[58ch] mb-7">
+        Files are sanitized in your browser (EXIF, XMP, document metadata) before leaving this device. Server-side, qpdf does a final pass.
+      </p>
+
+      <label className="block border-2 border-dashed border-rule2 stripe-placeholder p-10 text-center cursor-pointer hover:border-paper3 transition">
+        <input
+          type="file"
+          className="hidden"
+          accept="image/jpeg,image/png,image/webp,application/pdf"
+          onChange={onPick}
+        />
+        <div className="text-amber font-mono text-3xl mb-3">⤓</div>
+        <div className="font-serif-disp text-2xl text-paper mb-2">{busy ? `Sanitizing & pinning ${busy}…` : "Choose a file"}</div>
+        <div className="font-mono text-[11.5px] text-paper3">PDF · JPEG · PNG · WebP</div>
+      </label>
+
+      {error && <div className="mt-4 font-mono text-[11px] text-alert">{error}</div>}
+
+      {state.evidence.length > 0 && (
+        <ul className="mt-6 space-y-2">
+          {state.evidence.map((e) => (
+            <li key={e.cid} className="border border-rule2 bg-panel p-4 flex items-center justify-between" style={{ borderRadius: 0 }}>
+              <div>
+                <div className="font-mono text-[12.5px] text-paper">{e.filename}</div>
+                <div className="font-mono text-[10.5px] text-paper3 mt-1">{e.mime} · {e.cid.slice(0, 16)}…</div>
+              </div>
+              <button onClick={() => removeOne(e.cid)} className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-paper3 hover:text-alert" style={{ borderRadius: 0 }}>
+                remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-8">
+        <label className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3 block mb-2">Summary <span className="text-alert">*</span></label>
+        <textarea
+          value={state.summary ?? ""}
+          onChange={(e) => update({ summary: e.target.value })}
+          rows={5}
+          maxLength={1000}
+          placeholder="Describe what happened. ≤ 1000 chars."
+          className="w-full bg-ink border border-rule2 text-paper text-[14px] p-4 focus:outline-none focus:border-paper3"
+          style={{ borderRadius: 0 }}
+        />
+        <div className="mt-1 font-mono text-[10px] text-paper3 text-right">{(state.summary ?? "").length}/1000</div>
+      </div>
     </div>
   );
 }
