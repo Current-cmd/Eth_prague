@@ -16,4 +16,5 @@ serde_json = { workspace = true }
 hex = { workspace = true }
 anyhow = { workspace = true }
 clap = { version = "4.5", features = ["derive"] }
+bincode = "1.3"
 shieldpass-methods = { path = "../methods" }

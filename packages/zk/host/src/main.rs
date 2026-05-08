@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use risc0_zkvm::{default_executor, ExecutorEnv};
+use risc0_zkvm::{default_prover, sha::Digestible, ExecutorEnv};
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read};
 
@@ -81,18 +81,16 @@ fn run_proof(req: ProofRequest) -> Result<ProofReceipt> {
     // Build executor environment
     let mut env_builder = ExecutorEnv::builder();
 
-    // Write private inputs
-    env_builder.write_slice(&badge);
-    env_builder.write_slice(&merkle_path);
-    env_builder.write_slice(&merkle_indices);
+    // Write inputs (serde-serialized, matching guest env::read::<T>() calls)
+    env_builder.write(&badge).unwrap();
+    env_builder.write(&merkle_path).unwrap();
+    env_builder.write(&merkle_indices).unwrap();
+    env_builder.write(&root).unwrap();
+    env_builder.write(&report_hash).unwrap();
+    env_builder.write(&period_id).unwrap();
+    env_builder.write(&ens_node).unwrap();
 
-    // Write public inputs
-    env_builder.write_slice(&root);
-    env_builder.write_slice(&report_hash);
-    env_builder.write_slice(&period_id);
-    env_builder.write_slice(&ens_node);
-
-    // Build executor
+    // Build environment
     let env = env_builder.build()?;
 
     // Get the ELF from the methods crate
@@ -100,11 +98,10 @@ fn run_proof(req: ProofRequest) -> Result<ProofReceipt> {
     let elf = include_bytes!("../../methods/guest/target/riscv32im-risc0-zkvm-elf/release/shieldpass-guest");
 
     // Run the prover
-    let exec = default_executor();
-    let session = exec.execute(env, elf)?;
+    let prove_info = default_prover().prove(env, elf)?;
 
-    // Get the journal (the committed data from guest)
-    let journal_bytes = session.journal.unwrap().decode();
+    // Get the journal bytes (the committed data from guest)
+    let journal_bytes = prove_info.receipt.journal.bytes.clone();
 
     // Verify journal length
     if journal_bytes.len() != 160 {
@@ -135,13 +132,14 @@ fn run_proof(req: ProofRequest) -> Result<ProofReceipt> {
             .map_err(|_| anyhow::anyhow!("Failed to parse periodId"))?,
     );
 
-    // Get the receipt with seal and image ID
-    let receipt = session.send()?;
-    let seal_bytes = receipt.seal;
-    let image_id = receipt.image_id;
+    // Extract seal (bincode-serialize the inner receipt for on-chain use)
+    let seal_bytes = bincode::serialize(&prove_info.receipt.inner)?;
+
+    // Extract image ID from receipt claim (pre-state digest = image ID)
+    let image_id_digest = prove_info.receipt.claim()?.value()?.pre.digest();
 
     let proof_receipt = ProofReceipt {
-        seal: bytes_to_hex(seal_bytes),
+        seal: bytes_to_hex(&seal_bytes),
         journal: JournalOutput {
             root: bytes_to_hex(&root_arr),
             reportHash: bytes_to_hex(&report_hash_arr),
@@ -149,7 +147,7 @@ fn run_proof(req: ProofRequest) -> Result<ProofReceipt> {
             periodId: period_id_val,
             ensNode: bytes_to_hex(&ens_node_arr),
         },
-        imageId: bytes_to_hex(image_id.as_bytes()),
+        imageId: bytes_to_hex(image_id_digest.as_bytes()),
     };
 
     Ok(proof_receipt)

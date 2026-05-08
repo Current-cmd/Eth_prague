@@ -12,7 +12,7 @@ const reqs = (resource: string): PaymentRequirements => ({
   payTo: (process.env.X402_PAY_TO ?? "0x0000000000000000000000000000000000000000") as `0x${string}`,
   resource,
   maxTimeoutSeconds: 600,
-  extra: { resource },
+  extra: { reportHash: resource.split("/").pop() },
 });
 
 export const contextPackRoute: FastifyPluginAsync = async (app) => {

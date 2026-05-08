@@ -22,16 +22,16 @@
       "0x0000000000000000000000000000000000000000000000000000000000000000"
     ],
     "merkleIndices": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    "root": "0x2e467050518eb2c70ac47f9e3ff1eea8f8e3b2f0b5b5b5b5b5b5b5b5b5b5b5b",
+    "root": "0x2948380e272be9a3604fb82ca35420377f21c68f375d9fb69d52c3234d0349bc",
     "reportHash": "0x0303030303030303030303030303030303030303030303030303030303030303",
     "periodId": 8738,
     "ensNode": "0x0404040404040404040404040404040404040404040404040404040404040404"
   },
   "expectedOutputs": {
     "_comment": "nullifier = poseidon([2, badge, periodId]) with domain tag 2",
-    "nullifier": "0x1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+    "nullifier": "0x1f53503949c8daac76f9b2fa28fd5abb143fcb7ab399dd443ea4982997d508ab",
     "_comment": "journalDigest = sha256(abi.encode(root, reportHash, nullifier, periodId, ensNode))",
-    "journalDigest": "0x5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b"
+    "journalDigest": "0x8b209ddcb81f0eea9359128d0de86552254bcefe436c106341003adf9e6595c7"
   },
   "notes": {
     "poseidonParams": "BN254 field, circom-compatible constants from light-poseidon crate",
