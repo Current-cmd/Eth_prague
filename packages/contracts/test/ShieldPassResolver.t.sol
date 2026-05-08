@@ -121,6 +121,8 @@ contract ShieldPassResolverTest is Test {
         bytes memory data = abi.encodeWithSelector(bytes4(0xDEADBEEF), bytes32(0), "key");
         bytes memory result = resolver.resolve(_workerDnsName(), data);
         assertEq(result.length, 0);
+    }
+    
     // -------------------------------------------------------------
     // SpaceComputer KMS & Two-Tier Badge System Tests
     // -------------------------------------------------------------
