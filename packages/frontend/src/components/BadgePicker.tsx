@@ -1,8 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { Hex } from "viem";
 import { DEMO_WORKERS, leavesFor, type DemoWorker } from "../lib/demoWorkers";
-import { buildTree } from "../lib/merkle";
-import { leafHash } from "../lib/poseidon";
 import { Btn } from "./shared";
 
 interface BadgeBundle {
@@ -21,6 +19,7 @@ interface BadgePickerProps {
 export function BadgePicker({ onPick }: BadgePickerProps) {
   const [tab, setTab] = useState<"demo" | "upload">("demo");
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDemoSelect = (w: DemoWorker) => {
     setError(null);
@@ -89,15 +88,16 @@ export function BadgePicker({ onPick }: BadgePickerProps) {
           </div>
         )
       ) : (
-        <label className="block">
+        <div>
           <input
+            ref={fileInputRef}
             type="file"
             accept="application/json"
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }}
           />
-          <Btn kind="ghost" size="md" className="cursor-pointer">Choose badge JSON…</Btn>
-        </label>
+          <Btn kind="ghost" size="md" onClick={() => fileInputRef.current?.click()}>Choose badge JSON…</Btn>
+        </div>
       )}
 
       {error && (
@@ -107,16 +107,10 @@ export function BadgePicker({ onPick }: BadgePickerProps) {
   );
 }
 
-/** Build the company tree from leavesFor(company); confirm leafIndex's leaf equals leafHash(badge). */
+/** Confirm the badge at leafIndex matches what's stored in the leaves bundle for this company. */
 function validateInTree(badge: Hex, company: string, leafIndex: number): boolean {
   const leaves = leavesFor(company);
   if (!leaves) return false;
   if (leafIndex < 0 || leafIndex >= leaves.length) return false;
-  if (leaves[leafIndex].toLowerCase() !== badge.toLowerCase()) return false;
-  // Build the tree to assert it's well-formed (and to surface any error from buildTree).
-  // Chain-side root match is asserted at submit time (Step 4 reads BadgeTreeManager.isRootFresh).
-  buildTree(leaves, 16);
-  // leafHash use here just keeps the import live for editors; not strictly needed.
-  void leafHash;
-  return true;
+  return leaves[leafIndex].toLowerCase() === badge.toLowerCase();
 }

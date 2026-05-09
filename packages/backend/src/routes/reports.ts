@@ -52,7 +52,7 @@ export const reportsRoute: FastifyPluginAsync = async (app) => {
         category: categoryNum,
         since,
         limit,
-        cursor: cursor ? parseInt(cursor, 10) : undefined,
+        cursor,
       });
 
       const items: Report[] = result.items.map((row) => ({

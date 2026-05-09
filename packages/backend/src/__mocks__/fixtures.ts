@@ -179,7 +179,7 @@ export const mockApiEndpoints = {
   "/v1/companies": { items: [mockCompany], nextCursor: null },
   "/v1/companies/acme.shieldpass-demo.eth": mockCompany,
   "/v1/reports": { items: mockReports, nextCursor: null },
-  "/v1/reports/" + mockReports[0].reportHash: mockReports[0],
+  ["/v1/reports/" + mockReports[0].reportHash]: mockReports[0],
   "/v1/proofs": mockProofJobStates.queued,
   "/v1/proofs/queued-uuid": mockProofJobStates.queued,
   "/v1/proofs/fulfilled-uuid": mockProofJobStates.fulfilled,

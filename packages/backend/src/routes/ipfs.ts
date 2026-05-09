@@ -8,13 +8,9 @@ type PinResult = components["schemas"]["PinResult"];
 export const ipfsRoute: FastifyPluginAsync = async (app) => {
   app.post<{ Reply: PinResult | { code: string; message: string } }>(
     "/ipfs/pin",
-    {
-      schema: {
-        consumes: ["multipart/form-data"],
-      },
-    },
+    {},
     async (req, reply) => {
-      const data = await req.file();
+      const data = await (req as any).file();
       if (!data) {
         return reply.code(400).send({
           code: "BAD_INPUT",

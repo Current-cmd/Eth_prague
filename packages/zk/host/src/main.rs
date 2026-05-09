@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use risc0_zkvm::{default_prover, sha::Digestible, ExecutorEnv};
 use serde::{Deserialize, Serialize};
+use shieldpass_methods::SHIELDPASS_GUEST_ELF;
 use std::io::{self, Read};
 
 /// Local prover CLI for ShieldPass ZK circuit
@@ -93,12 +94,7 @@ fn run_proof(req: ProofRequest) -> Result<ProofReceipt> {
     // Build environment
     let env = env_builder.build()?;
 
-    // Get the ELF from the methods crate
-    // Note: This expects the ELF to be built at this path
-    let elf = include_bytes!("../../methods/guest/target/riscv32im-risc0-zkvm-elf/release/shieldpass-guest");
-
-    // Run the prover
-    let prove_info = default_prover().prove(env, elf)?;
+    let prove_info = default_prover().prove(env, SHIELDPASS_GUEST_ELF)?;
 
     // Get the journal bytes (the committed data from guest)
     let journal_bytes = prove_info.receipt.journal.bytes.clone();

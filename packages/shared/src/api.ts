@@ -532,6 +532,7 @@ export interface components {
             /** Format: int64 */
             periodId: number;
             badge: components["schemas"]["Hex32"];
+            root: components["schemas"]["Hex32"];
             merklePath: components["schemas"]["Hex32"][];
             merkleIndices: number[];
         };

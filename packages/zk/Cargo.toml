@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["methods", "host"]
+members = ["methods", "methods/guest", "host"]
 
 [workspace.package]
 version = "0.1.0"

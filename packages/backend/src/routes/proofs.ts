@@ -14,12 +14,13 @@ export const proofsRoute: FastifyPluginAsync = async (app) => {
       schema: {
         body: {
           type: "object",
-          required: ["ensNode", "reportHash", "periodId", "badge", "merklePath", "merkleIndices"],
+          required: ["ensNode", "reportHash", "periodId", "badge", "root", "merklePath", "merkleIndices"],
           properties: {
             ensNode: { type: "string", pattern: "^0x[0-9a-fA-F]{64}$" },
             reportHash: { type: "string", pattern: "^0x[0-9a-fA-F]{64}$" },
             periodId: { type: "integer" },
             badge: { type: "string", pattern: "^0x[0-9a-fA-F]{64}$" },
+            root: { type: "string", pattern: "^0x[0-9a-fA-F]{64}$" },
             merklePath: {
               type: "array",
               items: { type: "string", pattern: "^0x[0-9a-fA-F]{64}$" },
@@ -27,14 +28,11 @@ export const proofsRoute: FastifyPluginAsync = async (app) => {
             merkleIndices: { type: "array", items: { type: "integer", minimum: 0, maximum: 1 } },
           },
         },
-        response: {
-          202: Job,
-        },
       },
     },
     async (req, reply) => {
       const id = randomUUID();
-      const expiresAt = Math.floor(Date.now() / 1000) + 900; // 15 min
+      const expiresAt = Math.floor(Date.now() / 1000) + 1800; // 30 min
 
       dbHelpers.insertProofJob({
         request_id: id,
@@ -46,13 +44,8 @@ export const proofsRoute: FastifyPluginAsync = async (app) => {
         expires_at: expiresAt,
       });
 
-      // Fire-and-forget proof generation
-      prover.submit(id, req.body, expiresAt).catch((e) =>
-        dbHelpers.updateProofJob(id, {
-          status: "failed",
-          error: String(e),
-        })
-      );
+      // Enqueue proof — errors handled inside prover.submit
+      prover.submit(id, req.body, expiresAt);
 
       return reply.code(202).send({
         requestId: id,
@@ -74,7 +67,6 @@ export const proofsRoute: FastifyPluginAsync = async (app) => {
           },
         },
         response: {
-          200: Job,
           404: {
             type: "object",
             required: ["code", "message"],

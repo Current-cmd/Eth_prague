@@ -26,7 +26,9 @@ library PoseidonT3 {
         uint256[2] memory inp;
         inp[0] = domainTag;
         inp[1] = input;
-        (bool ok, bytes memory out) = inst.staticcall(abi.encode(inp));
+        (bool ok, bytes memory out) = inst.staticcall(
+            abi.encodeWithSelector(bytes4(0x29a5f2f6), inp[0], inp[1])
+        );
         require(ok, "poseidon2 failed");
         result = abi.decode(out, (uint256));
     }
@@ -39,7 +41,9 @@ library PoseidonT3 {
         inp[0] = domainTag;
         inp[1] = left;
         inp[2] = right;
-        (bool ok, bytes memory out) = inst.staticcall(abi.encode(inp));
+        (bool ok, bytes memory out) = inst.staticcall(
+            abi.encodeWithSelector(bytes4(0x25cc70e8), inp[0], inp[1], inp[2])
+        );
         require(ok, "poseidon3 failed");
         result = abi.decode(out, (uint256));
     }

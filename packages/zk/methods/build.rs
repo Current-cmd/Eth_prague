@@ -1,4 +1,3 @@
 fn main() {
-    // Trigger rebuild when methods change
-    println!("cargo:rerun-if-changed=guest");
+    risc0_build::embed_methods();
 }

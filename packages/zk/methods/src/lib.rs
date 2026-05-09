@@ -3,6 +3,8 @@
 extern crate alloc;
 use alloc::vec::Vec;
 
+include!(concat!(env!("OUT_DIR"), "/methods.rs"));
+
 use alloy_primitives::{keccak256, B256};
 use alloy_sol_types::sol;
 

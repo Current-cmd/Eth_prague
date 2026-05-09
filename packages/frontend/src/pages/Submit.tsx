@@ -59,7 +59,7 @@ export default function Submit() {
 
   const canAdvance = (() => {
     if (step === 1) return !!(state.account && state.badge && state.pseudonym && state.company);
-    if (step === 2) return state.evidence.length > 0 && (state.summary?.trim().length ?? 0) > 30;
+    if (step === 2) return (state.summary?.trim().length ?? 0) > 0;
     if (step === 3) return !!(state.category && state.title && state.payloadCid && state.reportHash);
     if (step === 4) return !!state.proofReceipt;
     return false;
@@ -415,6 +415,7 @@ function Step4({ state, update }: { state: SubmitFlowState; update: (p: Partial<
           reportHash: state.reportHash,
           periodId: Number(periodId),
           badge: state.badge,
+          root: proof.root,
           merklePath: proof.path,
           merkleIndices: proof.indices,
         },
@@ -529,6 +530,7 @@ function Step5({ state }: { state: SubmitFlowState }) {
       state.pseudonymNode!,
       state.payloadCid!,
     ],
+    gas: 800000n, // override estimation — dev-mode seal causes estimateGas to revert
   });
 
   return (

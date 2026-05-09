@@ -1,4 +1,4 @@
-import { createPublicClient, http, Log } from "viem";
+import { createPublicClient, http } from "viem";
 import { sepolia } from "viem/chains";
 import { SEPOLIA_ADDRESSES } from "@shieldpass/shared/chain";
 import { dbHelpers } from "./db.js";
@@ -41,15 +41,12 @@ const BADGE_TREE_MANAGER_ABI = [
 let lastIndexedBlock: number;
 
 export async function startIndexer() {
-  // Get last indexed block from DB
   const saved = dbHelpers.getMeta("last_indexed_block");
-  lastIndexedBlock = saved ? parseInt(saved, 10) : (await client.getBlockNumber()) - 1n;
+  lastIndexedBlock = saved ? parseInt(saved, 10) : Number((await client.getBlockNumber()) - 1n);
 
-  // Index historical logs
   await indexLogs();
 
-  // Watch for new logs
-  const unwatch = client.watchContractEvent({
+  client.watchContractEvent({
     address: SEPOLIA_ADDRESSES.ReportRegistry,
     abi: REPORT_REGISTRY_ABI,
     eventName: "ReportSubmitted",
@@ -60,7 +57,7 @@ export async function startIndexer() {
     },
   });
 
-  const unwatch2 = client.watchContractEvent({
+  client.watchContractEvent({
     address: SEPOLIA_ADDRESSES.BadgeTreeManager,
     abi: BADGE_TREE_MANAGER_ABI,
     eventName: "RootRotated",
@@ -76,12 +73,13 @@ export async function startIndexer() {
 
 async function indexLogs() {
   // TODO: Index historical logs from lastIndexedBlock to current
-  // For Phase 1, we'll rely on real-time indexing
 }
 
-async function processReportSubmitted(log: Log) {
-  const { ensNode, reportHash, nullifier, rootUsed, category, pseudonymNode, cid } =
-    log.args;
+type ReportLog = Parameters<Parameters<typeof client.watchContractEvent<typeof REPORT_REGISTRY_ABI, "ReportSubmitted">>[0]["onLogs"]>[0][number];
+type RootLog = Parameters<Parameters<typeof client.watchContractEvent<typeof BADGE_TREE_MANAGER_ABI, "RootRotated">>[0]["onLogs"]>[0][number];
+
+async function processReportSubmitted(log: ReportLog) {
+  const { ensNode, reportHash, nullifier, rootUsed, category, pseudonymNode, cid } = log.args;
 
   if (!ensNode || !reportHash || !nullifier || !rootUsed || !cid) return;
 
@@ -94,11 +92,10 @@ async function processReportSubmitted(log: Log) {
     category: Number(category),
     submitted_at: Number(log.blockNumber),
     pseudonym_node: pseudonymNode ?? "0x0000000000000000000000000000000000000000",
-    tx_hash: log.transactionHash,
+    tx_hash: log.transactionHash ?? "0x",
     block_number: Number(log.blockNumber),
   });
 
-  // Update last indexed block
   const blockNumber = Number(log.blockNumber);
   if (blockNumber > lastIndexedBlock) {
     lastIndexedBlock = blockNumber;
@@ -106,13 +103,12 @@ async function processReportSubmitted(log: Log) {
   }
 }
 
-async function processRootRotated(log: Log) {
+async function processRootRotated(log: RootLog) {
   const { ensNode, newRoot } = log.args;
   if (!ensNode || !newRoot) return;
 
   dbHelpers.insertRootHistory(ensNode, newRoot, Number(log.blockNumber));
 
-  // Update last indexed block
   const blockNumber = Number(log.blockNumber);
   if (blockNumber > lastIndexedBlock) {
     lastIndexedBlock = blockNumber;

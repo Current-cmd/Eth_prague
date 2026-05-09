@@ -1,10 +1,11 @@
-import { PinataSDK } from "@pinata/sdk";
+import PinataClient from "@pinata/sdk";
+import { Readable } from "node:stream";
 import { keccak256, toBytes } from "viem";
-import type { ReportPayload } from "@shieldpass/shared/api";
+import type { components } from "@shieldpass/shared/api";
 
-const pinata = new PinataSDK({
-  pinataJwt: process.env.PINATA_JWT ?? "",
-});
+type ReportPayload = components["schemas"]["ReportPayload"];
+
+const pinata = new PinataClient({ pinataJWTKey: process.env.PINATA_JWT ?? "" });
 
 // Canonical JSON stringification (RFC 8785 JCS)
 function canonicalStringify(obj: any): string {
@@ -28,12 +29,10 @@ export function computeReportHash(
   category: number,
   payload: ReportPayload
 ): `0x${string}` {
-  // Canonicalize the payload
   const canonical = canonicalStringify(payload);
   const canonicalBytes = toBytes(canonical);
   const contentHash = keccak256(canonicalBytes);
 
-  // abi.encodePacked
   const domain = toBytes("SHIELDPASS_REPORT_v1");
   const ensBytes = toBytes(ensNode);
   const categoryBytes = new Uint8Array([category]);
@@ -51,7 +50,8 @@ export function computeReportHash(
 
 export async function pinFile(file: Buffer, filename: string): Promise<{ cid: string; size: number }> {
   try {
-    const result = await pinata.upload.binary(file, {
+    const stream = Readable.from(file);
+    const result = await pinata.pinFileToIPFS(stream, {
       pinataMetadata: { name: filename },
     });
     return { cid: result.IpfsHash, size: file.length };
@@ -66,7 +66,7 @@ export async function pinJson(
   category: number
 ): Promise<{ cid: string; reportHash: `0x${string}` }> {
   try {
-    const result = await pinata.upload.json(payload as any);
+    const result = await pinata.pinJSONToIPFS(payload);
     const reportHash = computeReportHash(ensNode, category, payload);
     return { cid: result.IpfsHash, reportHash };
   } catch (e) {
