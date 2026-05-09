@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import type { Hex } from "viem";
 import { ReportCategory } from "@shieldpass/shared/enums";
 import { SEPOLIA_ADDRESSES } from "@shieldpass/shared/chain";
-import { ReportRegistryAbi } from "@shieldpass/shared/abis";
+import { ReportRegistryAbi, ShieldPassResolverAbi } from "@shieldpass/shared/abis";
 import { ConnectButton } from "../components/ConnectButton";
 import { BadgePicker } from "../components/BadgePicker";
 import { AnonMark, Btn } from "../components/shared";
@@ -498,15 +498,17 @@ function ProofGrid({ active }: { active: boolean }) {
   );
 }
 
-function Step5({ state }: { state: SubmitFlowState }) {
-  const [confirmed, setConfirmed] = useState(false);
-  const navigate = useNavigate();
-  const { writeContract, data: txHash, isPending: writing, error: writeErr } = useWriteContract();
-  const { isLoading: confirming, isSuccess: confirmed_, data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
+type EnsPhase = "idle" | "writing-nullifier" | "writing-report" | "done" | "error";
 
-  useEffect(() => {
-    if (confirmed_ && state.reportHash) navigate(`/reports/${state.reportHash}`);
-  }, [confirmed_, state.reportHash, navigate]);
+function Step5({ state }: { state: SubmitFlowState }) {
+  const [checkboxOk, setCheckboxOk] = useState(false);
+  const [mainTxHash, setMainTxHash] = useState<`0x${string}` | undefined>();
+  const [ensPhase, setEnsPhase] = useState<EnsPhase>("idle");
+  const navigate = useNavigate();
+
+  const { writeContractAsync, isPending: writing, error: writeErr } = useWriteContract();
+  const { isLoading: confirming, isSuccess: mainConfirmed, data: receipt } =
+    useWaitForTransactionReceipt({ hash: mainTxHash });
 
   if (!state.proofReceipt || !state.company || !state.reportHash || !state.pseudonymNode || !state.category) {
     return <div className="font-mono text-[11px] text-alert">Missing earlier-step outputs.</div>;
@@ -515,23 +517,83 @@ function Step5({ state }: { state: SubmitFlowState }) {
   const enumIndex = Object.values(ReportCategory).indexOf(state.category);
   const j = state.proofReceipt.journal;
 
-  const submit = () => writeContract({
-    address: SEPOLIA_ADDRESSES.ReportRegistry,
-    abi: ReportRegistryAbi as any,
-    functionName: "submitReport",
-    args: [
-      state.proofReceipt!.seal,
-      j.root,
-      j.reportHash,
-      j.nullifier,
-      BigInt(j.periodId),
-      j.ensNode,
-      enumIndex,
-      state.pseudonymNode!,
-      state.payloadCid!,
-    ],
-    gas: 800000n, // override estimation — dev-mode seal causes estimateGas to revert
-  });
+  const submit = async () => {
+    try {
+      const hash = await writeContractAsync({
+        address: SEPOLIA_ADDRESSES.ReportRegistry,
+        abi: ReportRegistryAbi as any,
+        functionName: "submitReport",
+        args: [
+          state.proofReceipt!.seal,
+          j.root,
+          j.reportHash,
+          j.nullifier,
+          BigInt(j.periodId),
+          j.ensNode,
+          enumIndex,
+          state.pseudonymNode!,
+          state.payloadCid!,
+        ],
+        gas: 800000n, // dev-mode seal causes estimateGas to revert
+      });
+      setMainTxHash(hash);
+    } catch {
+      // writeErr is surfaced via the hook
+    }
+  };
+
+  // After the main tx confirms, write proof receipt back to the worker's ENS subname.
+  // Requires the connected wallet to be the company admin (onlyAdmin in ShieldPassResolver).
+  useEffect(() => {
+    if (!mainConfirmed) return;
+
+    (async () => {
+      try {
+        setEnsPhase("writing-nullifier");
+        await writeContractAsync({
+          address: SEPOLIA_ADDRESSES.ShieldPassResolver,
+          abi: ShieldPassResolverAbi as any,
+          functionName: "setSubText",
+          args: [
+            state.company!.ensNode,
+            state.pseudonymNode!,
+            "shieldpass.latest-nullifier",
+            j.nullifier,
+          ],
+        });
+
+        setEnsPhase("writing-report");
+        await writeContractAsync({
+          address: SEPOLIA_ADDRESSES.ShieldPassResolver,
+          abi: ShieldPassResolverAbi as any,
+          functionName: "setSubText",
+          args: [
+            state.company!.ensNode,
+            state.pseudonymNode!,
+            "shieldpass.latest-report-hash",
+            j.reportHash,
+          ],
+        });
+
+        setEnsPhase("done");
+      } catch {
+        // ENS writes are best-effort — navigate regardless
+        setEnsPhase("error");
+      }
+      navigate(`/reports/${state.reportHash}`);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainConfirmed]);
+
+  const busy = writing || confirming || (ensPhase !== "idle" && ensPhase !== "done" && ensPhase !== "error");
+
+  const btnLabel = (() => {
+    if (writing)                       return "Confirm in wallet…";
+    if (confirming)                    return "Waiting for tx…";
+    if (ensPhase === "writing-nullifier") return "Writing nullifier to ENS…";
+    if (ensPhase === "writing-report")    return "Writing report hash to ENS…";
+    return "Submit Report ⤤";
+  })();
 
   return (
     <div>
@@ -550,8 +612,8 @@ function Step5({ state }: { state: SubmitFlowState }) {
       <label className="mt-6 flex items-start gap-3 cursor-pointer select-none">
         <input
           type="checkbox"
-          checked={confirmed}
-          onChange={(e) => setConfirmed(e.target.checked)}
+          checked={checkboxOk}
+          onChange={(e) => setCheckboxOk(e.target.checked)}
           className="mt-1 w-4 h-4 border border-rule2"
           style={{ borderRadius: 0 }}
         />
@@ -561,13 +623,20 @@ function Step5({ state }: { state: SubmitFlowState }) {
       </label>
 
       <div className="mt-6 flex justify-end">
-        <Btn kind="primary" size="lg" disabled={!confirmed || writing || confirming} onClick={submit}>
-          {writing ? "Confirm in wallet…" : confirming ? "Waiting for tx…" : "Submit Report ⤤"}
+        <Btn kind="primary" size="lg" disabled={!checkboxOk || busy} onClick={submit}>
+          {btnLabel}
         </Btn>
       </div>
 
       {writeErr && <div className="mt-4 font-mono text-[11px] text-alert">{writeErr.message}</div>}
-      {receipt && <div className="mt-4 font-mono text-[11px] text-verify">tx: {receipt.transactionHash}</div>}
+      {ensPhase === "error" && (
+        <div className="mt-4 font-mono text-[11px] text-paper3">
+          ENS record update failed (wallet may not be company admin) — report was still submitted on-chain.
+        </div>
+      )}
+      {receipt && (
+        <div className="mt-4 font-mono text-[11px] text-verify">tx: {receipt.transactionHash}</div>
+      )}
     </div>
   );
 }

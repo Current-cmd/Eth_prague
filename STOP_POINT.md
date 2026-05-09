@@ -140,6 +140,55 @@ PINATA_JWT=<set>
 
 ---
 
+## Session 2 changes (2026-05-09 — E2E flow fixes + FLOW.html)
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `packages/frontend/src/components/BadgePicker.tsx` | Fixed `validateInTree` (removed 65K-op `buildTree` call that froze UI); fixed upload button (file input never triggered because `<Btn>` swallowed click — switched to `useRef<HTMLInputElement>` + `fileInputRef.current?.click()`) |
+| `packages/frontend/src/pages/Submit.tsx` | Step 2: `summary.trim().length > 30` → `> 0`; Step 4: added `root: proof.root` to `/proofs` POST body; Step 5: added `gas: 800000n` override to bypass MetaMask estimateGas failure |
+| `packages/backend/src/services/proverClient.ts` | Complete rewrite — replaced fire-and-forget single spawn with a FIFO serializing queue (max 1 prover process at a time); added `child.on("error")` handler; added stderr piping |
+| `packages/backend/src/routes/proofs.ts` | Added `root` to Fastify schema `required` + `properties`; removed `.catch()` from `prover.submit()` (now returns `void`); timeout 900 s → 1800 s |
+| `packages/backend/package.json` | `"dev": "tsx watch --env-file=.env src/server.ts"` (was `tsx watch src/server.ts` — PINATA_JWT never loaded) |
+| `packages/backend/.env` | Added `SHIELDPASS_HOST_CLI` (absolute path to binary); added `RISC0_DEV_MODE=1` |
+| `packages/shared/src/api.ts` | Added `root: components["schemas"]["Hex32"]` to `ProofRequest` schema |
+| `FLOW.html` | New file — interactive flowchart from graphify output (415 nodes, 718 links, 33 communities); 9 Mermaid sections; dark sidebar with scroll-spy |
+
+### Bugs fixed
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| Step 1 "Continue" disabled | `validateInTree` called `buildTree(leaves, 16)` synchronously → froze event loop | Just compare `leaves[leafIndex] === badge` |
+| "Upload your own" button did nothing | `<Btn>` inside `<label>` consumed click, never triggered `<input type="file">` | `useRef` + explicit `.click()` on input |
+| Step 2 "Continue" disabled with short text | Threshold was `> 30` chars | Changed to `> 0` |
+| `pin-json failed` in Step 3 | Backend `tsx` started without `--env-file=.env` → `PINATA_JWT` undefined | Fixed `package.json` dev script |
+| Step 4 POST /proofs → 500 | Route called `.catch()` on `prover.submit()` which now returns `void` | Removed `.catch()` call |
+| Step 4 proof job missing `root` | `root` not in shared type, schema, or POST body | Added to all three |
+| Laptop crash (4 prover processes) | Each retry spawned a new `shieldpass-prove` process; no serialization | FIFO queue — 1 process at a time |
+| `spawn ENOENT` for prover binary | Wrong relative path | `SHIELDPASS_HOST_CLI` env var with absolute path |
+| Proof stuck at 95% / expired | Real STARK takes >15 min on laptop | `RISC0_DEV_MODE=1` → dev proof in ~8 s |
+| MetaMask "gas limit too high" | Dev-mode seal causes `estimateGas` to revert | `gas: 800000n` hardcoded override |
+| `tsx watch src/server.ts` → `ERR_MODULE_NOT_FOUND: watch` | `--env-file` placed before `watch` → tsx treated `watch` as the script name | Reordered: `tsx watch --env-file=.env src/server.ts` |
+
+### Current backend .env (additions)
+```
+RISC0_DEV_MODE=1
+SHIELDPASS_HOST_CLI=/Users/anoushk/Developer/Hackathon/ethprague/packages/zk/target/release/shieldpass-prove
+```
+
+### E2E flow status
+All 5 steps now reach completion:
+- Steps 1–4: ✅ fully working
+- Step 5 (on-chain): tx is sent and MetaMask accepts it; **dev-mode seal is rejected by the on-chain RISC0 verifier** (expected — for real on-chain verification, remove `RISC0_DEV_MODE` and use a full STARK or route through Boundless Market for Groth16 wrapping)
+
+### ENS credential writing — implemented (2026-05-09)
+After `submitReport` confirms, Step 5 now calls `setSubText` twice (nullifier then reportHash) using `writeContractAsync`. Both are best-effort: if the connected wallet is not the company admin the calls revert, but the user is shown a warning and navigation still proceeds.
+
+**Requires redeploy of `ShieldPassResolver`** — the contract logic changed (see Session 3 changes below).
+
+---
+
 ## Problems solved this session (2026-05-09)
 
 ### ZK IMAGE_ID extraction
@@ -162,3 +211,41 @@ Even with Poseidon fixed, building a 65536-leaf tree requires ~65,544 Poseidon c
 
 ### ENS owner vs deployer
 SeedDemo requires the caller to own `shieldpass-demo.eth`. The ENS name is owned by `0xc28b64...`, not the deployer `0x244C...`. Fix: run SeedDemoSimple with the ENS owner's key.
+
+---
+
+## Session 3 changes (2026-05-09 — ENS implementation fixes)
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `packages/contracts/src/ShieldPassResolver.sol` | Replaced `_parentNode` with `_dnsNamehash(name, skipLabels)` that processes labels right-to-left (correct ENS namehash direction); added node/name cross-validation in `resolve()`; changed unsupported-selector path from `return ""` to `revert("unsupported selector")`; eliminated `int256` cast in reverse loop |
+| `packages/backend/src/services/ensReader.ts` | Replaced 15-line custom `namehash` implementation with `import { namehash } from "viem"`; added `getEnsText(name, key)` that uses viem's universal resolver (handles ENSIP-10 wildcard subnames automatically); fixed cache comment from "LRU" to "TTL"; re-exported `namehash` so existing route imports continue to work |
+| `packages/frontend/src/pages/Submit.tsx` | Step 5: switched to `writeContractAsync`; after main tx confirms, calls `ShieldPassResolver.setSubText` twice (nullifier then reportHash) to write proof receipt back to worker's ENS subname; shows ENS write phase in button label; gracefully handles ENS write failure (navigates regardless, shows warning if not admin) |
+
+### Bugs fixed
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| `parentText` fallback always returned wrong node | `_parentNode` accumulated labels left-to-right; ENS namehash requires right-to-left | Replaced with `_dnsNamehash(name, 1)` using `while (k > 0) { k--; }` reverse loop |
+| Any unrecognised resolver call silently returned `""` | `resolve()` returned empty bytes for non-text selectors | Changed to `revert("unsupported selector")` per ENSIP-10 spec |
+| Client could query arbitrary subText by supplying mismatched node | `node` from calldata was not validated against `name` | Added `require(node == _dnsNamehash(name, 0), "node/name mismatch")` |
+| Backend `namehash` could diverge from viem's implementation | Custom implementation using `toBytes(keccak256Hex)` chaining | Replaced with `export { namehash } from "viem"` |
+| Backend `getText` silently returns null for wildcard subnames | `ENSRegistry.resolver(exactNode)` finds nothing for unregistered subnames | Added `getEnsText(name, key)` via viem's universal resolver |
+| Worker ENS subname never updated after report submission | `setSubText` calls missing from Step 5 | Added two sequential `writeContractAsync` calls post-tx-confirm |
+
+### ⚠ Requires contract redeploy
+
+`ShieldPassResolver` logic changed. Run:
+
+```bash
+cd packages/contracts
+IMAGE_ID=0x42fe811b41a8bc63ca2b1a93afaa971b50911fa09ba026372280ac8ce7592c1a \
+DEPLOYER_PRIVATE_KEY=0x6b8954ed721fec939da8deab0321b155efab53c227e66ee099e8d0b692fc5518 \
+RISC0_VERIFIER=0x925d8331ddc0a1F0d96E68CF073DFE1d92b69187 \
+~/.foundry/bin/forge script script/Deploy.s.sol \
+  --rpc-url https://ethereum-sepolia-rpc.publicnode.com --broadcast
+```
+
+Then update `SHIELDPASS_RESOLVER` in `packages/frontend/.env.local` and `packages/backend/.env`, and re-run `SeedDemoSimple` with the new address.
