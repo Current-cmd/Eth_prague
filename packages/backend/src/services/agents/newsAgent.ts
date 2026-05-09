@@ -1,55 +1,61 @@
+import { ApifyClient } from "apify-client";
 import type { ScraperAgent, ScraperInput, ScraperResult, NewsArticle } from "./types.js";
 
-function slugify(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const MAX_ITEMS = 5;
+
+// Raw shape returned by easyapi/google-news-scraper
+interface ApifyNewsItem {
+  title?: string;
+  source?: string;
+  link?: string;
+  snippet?: string;
+  date?: string;
+  date_utc?: string;
+  [key: string]: unknown;
 }
 
-function daysAgo(n: number): string {
-  const d = new Date(Date.now() - n * 86_400_000);
-  return d.toISOString().split("T")[0];
+function mapToNewsArticle(item: ApifyNewsItem): NewsArticle {
+  return {
+    title:   item.title   ?? "(no title)",
+    source:  item.source  ?? "(unknown source)",
+    url:     item.link    ?? "",
+    snippet: item.snippet ?? "",
+    date:    item.date_utc ?? item.date ?? "",
+  };
 }
 
-function extractTopic(query: string): string {
-  const keywords = ["carbon", "recycling", "emissions", "labor", "supply chain", "renewable", "water", "biodiversity", "greenwashing", "ESG"];
-  for (const kw of keywords) {
-    if (query.toLowerCase().includes(kw.toLowerCase())) return kw;
-  }
-  return query.split(" ").slice(0, 3).join(" ");
-}
-
-// ── Mock news articles — realistic templates using input context ──────────
-// SWAP POINT: Replace this function body with an Apify actor call.
-// Signature must stay: (input: ScraperInput) => Promise<NewsArticle[]>
+// ── Real Apify call ────────────────────────────────────────────────────────
+// SWAP POINT fulfilled: was mock, now calls easyapi/google-news-scraper.
+// To revert to mocks, restore the previous fetchNewsArticles body.
 async function fetchNewsArticles(input: ScraperInput): Promise<NewsArticle[]> {
-  await new Promise((r) => setTimeout(r, 700 + Math.random() * 500));
+  const token = process.env.APIFY_TOKEN;
+  if (!token) {
+    console.error("[newsAgent] APIFY_TOKEN is not set — returning empty results");
+    return [];
+  }
 
-  const { company, query } = input;
-  const slug = slugify(company);
-  const topic = extractTopic(query);
+  const { query } = input;
+  console.info(`[newsAgent] querying Apify: "${query}" (maxItems=${MAX_ITEMS})`);
 
-  return [
-    {
-      title: `${company} ESG Disclosures Draw Scrutiny From Institutional Investors`,
-      source: "Reuters",
-      url: `https://reuters.com/business/sustainable-business/${slug}-esg-scrutiny-${Date.now().toString(36)}`,
-      snippet: `Major institutional shareholders of ${company} are demanding clarification on the company's ${topic} metrics after a whistleblower report raised questions about the accuracy of disclosed figures. The company claims a 34% reduction in Scope 2 emissions since 2021, a figure that third-party auditors have been unable to independently verify.`,
-      date: daysAgo(3),
-    },
-    {
-      title: `Analysts Flag Inconsistencies in ${company}'s Sustainability Reporting`,
-      source: "Financial Times",
-      url: `https://ft.com/content/${slug}-sustainability-${Date.now().toString(36)}`,
-      snippet: `A new analysis by ESG research firm Sustainalytics identifies material gaps in ${company}'s ${topic} disclosures for fiscal years 2022 and 2023. The report notes that the company's self-reported recycling rates differ by as much as 19 percentage points from municipal waste processor data in the same regions.`,
-      date: daysAgo(9),
-    },
-    {
-      title: `${company} Defends ESG Record Amid Growing Regulatory Pressure`,
-      source: "Bloomberg",
-      url: `https://bloomberg.com/news/${slug}-esg-defense-${Date.now().toString(36)}`,
-      snippet: `In response to investor criticism, ${company} issued a statement reaffirming the accuracy of its sustainability disclosures and announcing an independent review by Deloitte. The SEC is reportedly reviewing whether the company's ${topic} claims meet new climate disclosure rules that took effect this year.`,
-      date: daysAgo(17),
-    },
-  ];
+  try {
+    const client = new ApifyClient({ token });
+
+    const run = await client.actor("easyapi/google-news-scraper").call({
+      query,
+      maxItems: MAX_ITEMS,
+      gl: "us",
+      hl: "en",
+    });
+
+    const { items } = await client.dataset(run.defaultDatasetId).listItems();
+    const articles = (items as ApifyNewsItem[]).slice(0, MAX_ITEMS).map(mapToNewsArticle);
+
+    console.info(`[newsAgent] received ${articles.length} article(s) for "${query}"`);
+    return articles;
+  } catch (err) {
+    console.error(`[newsAgent] Apify call failed for "${query}":`, err);
+    return [];
+  }
 }
 
 export const newsAgent: ScraperAgent = {

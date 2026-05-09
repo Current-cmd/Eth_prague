@@ -199,11 +199,13 @@ GLM's `tool_choice` only supports `"auto"`. If the model returns prose instead o
 
 ### Swap points for production
 
-| Component | File | What to replace |
+| Component | File | Status |
 |---|---|---|
-| News scraper | `packages/backend/src/services/agents/newsAgent.ts` | `fetchNewsArticles()` body → Apify actor call |
-| Web scraper | `packages/backend/src/services/agents/webAgent.ts` | `fetchWebPages()` body → Apify website crawler |
-| Payment layer | `packages/backend/src/services/payments/mockPayment.ts` | `payForAgentRun()` body → x402 on-chain payment |
+| News scraper | `packages/backend/src/services/agents/newsAgent.ts` | **Live** — calls `easyapi/google-news-scraper` via Apify. Needs `APIFY_TOKEN`. |
+| Web scraper | `packages/backend/src/services/agents/webAgent.ts` | Mock — replace `fetchWebPages()` with Apify website crawler |
+| Payment layer | `packages/backend/src/services/payments/mockPayment.ts` | Mock — replace `payForAgentRun()` with x402 on-chain payment |
+
+Get your Apify token at **https://console.apify.com/account/integrations** and set `APIFY_TOKEN` in `packages/backend/.env`.
 
 ---
 
