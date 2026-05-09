@@ -6,11 +6,13 @@ import Feed from "./pages/Feed";
 import Submit from "./pages/Submit";
 import ReportDetail from "./pages/ReportDetail";
 import CompanyAdmin from "./pages/CompanyAdmin";
+import Investigate from "./pages/Investigate";
 import NotFound from "./pages/NotFound";
 
 const TABS = [
-  { to: "/",       label: "Public Registry",     short: "Registry" },
-  { to: "/submit", label: "Submit a Disclosure", short: "Submit"   },
+  { to: "/",            label: "Public Registry",     short: "Registry"    },
+  { to: "/submit",      label: "Submit a Disclosure", short: "Submit"      },
+  { to: "/investigate", label: "ESG Investigate",     short: "Investigate" },
   { to: "/admin/acme.shieldpass-demo.eth", label: "Admin Console", short: "Admin" },
 ];
 
@@ -23,6 +25,7 @@ export default function App() {
           <Route path="/" element={<Feed />} />
           <Route path="/submit" element={<Submit />} />
           <Route path="/reports/:reportHash" element={<ReportDetail />} />
+          <Route path="/investigate" element={<Investigate />} />
           <Route path="/admin/:companyEns" element={<CompanyAdmin />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
