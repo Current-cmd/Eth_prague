@@ -9,9 +9,10 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
     "@fastify/cors": "^10.0",
-    "@shieldpass/shared": "workspace:*",
     "@pinata/sdk": "^2.1.0",
+    "@shieldpass/shared": "workspace:*",
     "better-sqlite3": "^11.8",
     "fastify": "^5.3",
     "viem": "^2.22"
