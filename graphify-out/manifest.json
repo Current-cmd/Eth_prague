@@ -1,0 +1,426 @@
+{
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/zk/methods/build.rs": {
+    "mtime": 1778281484.0888858,
+    "hash": "70a69ce926a468d111265f90b50cf4a7"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/zk/methods/tests/integration_test.rs": {
+    "mtime": 1778275454.2258432,
+    "hash": "b6c16188942e0d45809209bc6b21f726"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/zk/methods/guest/src/main.rs": {
+    "mtime": 1778280443.2194989,
+    "hash": "3c8f9e15a222fff1796fda251c313ccb"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/zk/methods/src/lib.rs": {
+    "mtime": 1778281507.5157523,
+    "hash": "ee2c8324f3df3e383b7739725b2ef35e"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/zk/host/build.rs": {
+    "mtime": 1778281632.4494178,
+    "hash": "639e04c270fef8589636e0416761a67b"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/zk/host/src/image_id.rs": {
+    "mtime": 1778281521.586232,
+    "hash": "3efbb5e53800eeb321d9ef87ecd68f84"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/zk/host/src/compute_demo_root.rs": {
+    "mtime": 1778282779.256456,
+    "hash": "9b5cd210013a474d6400a490431e895c"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/zk/host/src/main.rs": {
+    "mtime": 1778281530.8407192,
+    "hash": "3bdb5452437809ba98edde38c73a3c22"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/tailwind.config.ts": {
+    "mtime": 1778275454.2232993,
+    "hash": "8f9000ed21c87c53284ae267c4c2cd2c"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/vite.config.ts": {
+    "mtime": 1778276982.5607681,
+    "hash": "1ef90be4ff6e40d277c1873705eb016a"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/vitest.config.ts": {
+    "mtime": 1778275454.2235346,
+    "hash": "92fbcfe0bbac9c30078702bd127807f2"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/postcss.config.js": {
+    "mtime": 1778275454.2181356,
+    "hash": "ef3ba2a81ba19f8ea5ddf625521e96f0"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/App.tsx": {
+    "mtime": 1778275454.2182972,
+    "hash": "a873a0aa70fa8f0f60b30493c965711c"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/main.tsx": {
+    "mtime": 1778275454.2221072,
+    "hash": "ad7b8085387de46d666453ac2d680d37"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/vite-env.d.ts": {
+    "mtime": 1778275454.2232082,
+    "hash": "458cf975f73c51ddaad1ca8fa43717a9"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/test/setup.ts": {
+    "mtime": 1778275454.22312,
+    "hash": "3709e3aa95abf0544678f0f2d9b46702"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/components/StructuredFields.tsx": {
+    "mtime": 1778275454.219035,
+    "hash": "9f840781025af68d5dbe51ccc3301018"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/components/shared.tsx": {
+    "mtime": 1778275454.2192245,
+    "hash": "321628d63c9a0e8ba379bd9f54e36b2f"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/components/EnsName.tsx": {
+    "mtime": 1778275454.2187784,
+    "hash": "a7d3d98457592086cee71a1b6548d00c"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/components/BadgePicker.tsx": {
+    "mtime": 1778314662.0367618,
+    "hash": "57ec5e97d82aa1a2b2d703ae730ab933"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/components/ConnectButton.tsx": {
+    "mtime": 1778275454.2186167,
+    "hash": "3ee56c1789e12cd356a38f42170d0dd3"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/components/ProofStatus.tsx": {
+    "mtime": 1778275454.2188694,
+    "hash": "b6f9e747a0d3e09aa43af63cc20eebe0"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/demoWorkers.ts": {
+    "mtime": 1778314049.7202613,
+    "hash": "6a0785f16189b5f87109ae495bde3083"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/poseidon.ts": {
+    "mtime": 1778275454.2210736,
+    "hash": "d13e32b5730fb5c5e966f236baaf5081"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/poseidon.test.ts": {
+    "mtime": 1778275454.2208817,
+    "hash": "149f34fc8770e3f42c53e2410ac789ef"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/api.ts": {
+    "mtime": 1778275454.2195365,
+    "hash": "d0ca3cc3c9ba5710213414f49810775c"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/categoryMeta.ts": {
+    "mtime": 1778275454.2197149,
+    "hash": "1647edbf2fbd92e6f79f856b518669ba"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/ens-live.ts": {
+    "mtime": 1778275454.2203534,
+    "hash": "6d815bf87e6fefc990041d16a8a65ad9"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/categoryFields.ts": {
+    "mtime": 1778275454.2196276,
+    "hash": "6b9c32fbf3376237d9188a2cf4b77966"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/merkle.ts": {
+    "mtime": 1778275454.2205815,
+    "hash": "c7820b888b5236176eff8a0db6f50045"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/wagmi.ts": {
+    "mtime": 1778275454.2220204,
+    "hash": "a75125a40dbc462cd1bcb62e5963e326"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/merkle.test.ts": {
+    "mtime": 1778275454.2204728,
+    "hash": "82001e18746a6e34c75f16a37d8f46b4"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/sanitize/exif.ts": {
+    "mtime": 1778275454.221482,
+    "hash": "a41043c2e95fc27e6c34c1e71c0f0658"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/sanitize/pdf.ts": {
+    "mtime": 1778275454.2219267,
+    "hash": "a76148fcf2257d0ccc373b9901b6a68a"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/sanitize/exif.test.ts": {
+    "mtime": 1778275454.2213373,
+    "hash": "e61ede2dbb9e22393f55602786057f0b"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/lib/sanitize/pdf.test.ts": {
+    "mtime": 1778275454.2216156,
+    "hash": "505bb29e6186ccb1e8c832a9e0bbc503"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/pages/Feed.tsx": {
+    "mtime": 1778275454.2224932,
+    "hash": "3534c0169e17f337ebfcf793a3603bf4"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/pages/CompanyAdmin.tsx": {
+    "mtime": 1778275454.2223272,
+    "hash": "37fba38c08d835bb42e7c2ded99fd4e3"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/pages/ReportDetail.tsx": {
+    "mtime": 1778275454.2227328,
+    "hash": "9eae24d9aebbc7104d037a0522f6c24f"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/pages/Submit.tsx": {
+    "mtime": 1778318411.9074771,
+    "hash": "4b7e35cf38fe3ce2b200b86264e0ef2a"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/pages/Submit.test.tsx": {
+    "mtime": 1778275454.2228212,
+    "hash": "bf41d67527cab2fe232b90ddc54cfa7c"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/src/pages/NotFound.tsx": {
+    "mtime": 1778275454.2225914,
+    "hash": "1e4ef6d0da618635ec25822390a7e276"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/contracts/scripts/gen-poseidon.js": {
+    "mtime": 1778275454.2130435,
+    "hash": "11fa558d84891a01249e792a46da12aa"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/contracts/lib/forge-std/scripts/vm.py": {
+    "mtime": 1778276571.4625776,
+    "hash": "1970965378fdfa21cce5e86c0f5a2491"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/vitest.config.ts": {
+    "mtime": 1778275454.211816,
+    "hash": "88b1ee0447db8f2787cc0d0ab6ffaed2"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/test/routes.test.ts": {
+    "mtime": 1778275454.211631,
+    "hash": "e4adc61133bd1ee17b64a06fb39829fd"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/server.ts": {
+    "mtime": 1778275454.2107735,
+    "hash": "494067635128103dbb4781b8d9a8f3ce"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/__mocks__/fixtures.ts": {
+    "mtime": 1778276627.2843492,
+    "hash": "2e82ca3035b1c71680f03b7e88a33c1c"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/routes/proofs.ts": {
+    "mtime": 1778318192.454041,
+    "hash": "e6dda9921660cc5ce6e1966986c7bc4d"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/routes/companies.ts": {
+    "mtime": 1778275454.210312,
+    "hash": "f6f93623523e76dcd6148072cb3e5be8"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/routes/reports.ts": {
+    "mtime": 1778276759.556824,
+    "hash": "1a73e20590f1f874969d858c29726350"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/routes/ipfs.ts": {
+    "mtime": 1778276712.763205,
+    "hash": "75ba916d6412ea4eaff3b1e2e32bf3c0"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/routes/contextPack.ts": {
+    "mtime": 1778275454.2104099,
+    "hash": "e862063d762a393a5cb152ea9433463f"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/services/ensReader.ts": {
+    "mtime": 1778275454.2110932,
+    "hash": "8e2db05c2c01113826062bfef1e425ac"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/services/ipfs.ts": {
+    "mtime": 1778276793.3046367,
+    "hash": "76d402d30ab9bac30c63df6a197b8d75"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/services/indexer.ts": {
+    "mtime": 1778276759.8026373,
+    "hash": "18d567cd07ac24c6d27a3f642785c26c"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/services/proverClient.ts": {
+    "mtime": 1778316394.7941637,
+    "hash": "aa9a5213949fc4948dd6f3e5b929e948"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/src/services/db.ts": {
+    "mtime": 1778275454.2109869,
+    "hash": "c893b3ff4910c7f97b139bf48eeb7780"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/shared/src/api.ts": {
+    "mtime": 1778315375.0873985,
+    "hash": "d4a1faac901c6bbbeb8d6d6910de902f"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/shared/src/chain.ts": {
+    "mtime": 1778275454.2244039,
+    "hash": "41a6ff89f540f834613a971ae9129d08"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/shared/src/enums.ts": {
+    "mtime": 1778275454.2244859,
+    "hash": "d856eae1dde5ff463dc87ca0c7479fd2"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/shared/src/abis/index.ts": {
+    "mtime": 1778275454.2242067,
+    "hash": "012768f99181909e171ab4f3eb160b94"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/zk/methods/build.rs": {
+    "mtime": 1778251528.1620576,
+    "hash": "a591482dd2e946b5a06235c955cd6029"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/zk/methods/tests/integration_test.rs": {
+    "mtime": 1778255637.5417233,
+    "hash": "b6c16188942e0d45809209bc6b21f726"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/zk/methods/guest/src/main.rs": {
+    "mtime": 1778251542.3426058,
+    "hash": "e4f4f956f87b5455af2b22900c78388f"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/zk/methods/src/lib.rs": {
+    "mtime": 1778251528.0461633,
+    "hash": "d3855648911401becbbea58bb58d8b52"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/zk/host/src/main.rs": {
+    "mtime": 1778255442.8477669,
+    "hash": "e9c83ffae999bdd8a2b7602a376752ca"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/vitest.config.ts": {
+    "mtime": 1778252069.5050366,
+    "hash": "88b1ee0447db8f2787cc0d0ab6ffaed2"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/test/routes.test.ts": {
+    "mtime": 1778252069.3772814,
+    "hash": "e4adc61133bd1ee17b64a06fb39829fd"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/server.ts": {
+    "mtime": 1778251719.0129092,
+    "hash": "494067635128103dbb4781b8d9a8f3ce"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/__mocks__/fixtures.ts": {
+    "mtime": 1778251741.8876657,
+    "hash": "d90eac42dca022789ec3e4be77f7c168"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/routes/proofs.ts": {
+    "mtime": 1778251712.3899727,
+    "hash": "d0242c5e79e35eff2e8fb014af6ae897"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/routes/companies.ts": {
+    "mtime": 1778251712.4977424,
+    "hash": "f6f93623523e76dcd6148072cb3e5be8"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/routes/reports.ts": {
+    "mtime": 1778251712.605865,
+    "hash": "64094976ef5fa028ee9c29840d223cf6"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/routes/ipfs.ts": {
+    "mtime": 1778251712.7192254,
+    "hash": "dd731a229a837fbfc047306d19979c90"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/routes/contextPack.ts": {
+    "mtime": 1778255576.7098975,
+    "hash": "e862063d762a393a5cb152ea9433463f"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/services/ensReader.ts": {
+    "mtime": 1778251990.930373,
+    "hash": "8e2db05c2c01113826062bfef1e425ac"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/services/ipfs.ts": {
+    "mtime": 1778251651.140558,
+    "hash": "348e3d468a5cb78a7d58e01c2571190c"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/services/indexer.ts": {
+    "mtime": 1778251663.2402158,
+    "hash": "b69266c6ffde92735f8e4131ee29dd3f"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/services/proverClient.ts": {
+    "mtime": 1778251650.8951726,
+    "hash": "5501270f2b74f3145281a1ce7ba47e95"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/src/services/db.ts": {
+    "mtime": 1778251650.6533053,
+    "hash": "c893b3ff4910c7f97b139bf48eeb7780"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/shared/src/api.ts": {
+    "mtime": 1778251503.3670108,
+    "hash": "debfaf9805c3dc6f08c73a693a25f279"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/shared/src/chain.ts": {
+    "mtime": 1778251512.8358333,
+    "hash": "41a6ff89f540f834613a971ae9129d08"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/shared/src/enums.ts": {
+    "mtime": 1778251512.7131064,
+    "hash": "d856eae1dde5ff463dc87ca0c7479fd2"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/shared/src/abis/index.ts": {
+    "mtime": 1778251512.9616299,
+    "hash": "898635539a34bdb2c3de65ec431c9737"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/STOP_POINT.md": {
+    "mtime": 1778284476.5275562,
+    "hash": "11e2b7e42cb07e203059ffa24881988e"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/README.md": {
+    "mtime": 1778284517.8974078,
+    "hash": "afd7b0a041db7f5e067506bdd4ad26dd"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/PHASE-FINAL.md": {
+    "mtime": 1778249043.2317894,
+    "hash": "c3d2c256b66e8cc62b40d5abdac29b39"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/pnpm-workspace.yaml": {
+    "mtime": 1778275454.2272668,
+    "hash": "15e915330bfbfeab7601d69ae0a8a2ac"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/archive/phase2.md": {
+    "mtime": 1778247256.5861762,
+    "hash": "eaad5e33794d1fb2a6a21e6082f4b5c6"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/archive/phase1.md": {
+    "mtime": 1778247245.483372,
+    "hash": "62f124dca22dc5dcdbc6f428ee293954"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/docs/superpowers/plans/2026-05-08-frontend-integration.md": {
+    "mtime": 1778275454.2085755,
+    "hash": "cbac91aa3f8c8b840aac736e4a1adbc4"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/docs/superpowers/plans/2026-05-08-core-contracts.md": {
+    "mtime": 1778275454.2081518,
+    "hash": "8881fde1382657147dd998fc015f6fba"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/docs/superpowers/specs/2026-05-08-frontend-integration-design.md": {
+    "mtime": 1778275454.2088442,
+    "hash": "6ba572625f9a95aed55de65918cfca9f"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/frontend/index.html": {
+    "mtime": 1778275454.2155771,
+    "hash": "08376c39eff0988507f7ac951e5b6d0d"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/contracts/test/WITNESS_VECTOR.md": {
+    "mtime": 1778275454.215069,
+    "hash": "303cd32aaae3d4dd6bf15fdfc8b96c25"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/contracts/lib/forge-std/RELEASE_CHECKLIST.md": {
+    "mtime": 1778276571.4621782,
+    "hash": "bc75ab52742de5ef6eadb909b117f719"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/contracts/lib/forge-std/README.md": {
+    "mtime": 1778276571.4620738,
+    "hash": "e34aa62d5543b6261f0a451ed43ab0f9"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/contracts/lib/forge-std/CONTRIBUTING.md": {
+    "mtime": 1778276571.4615834,
+    "hash": "951ef456e1de1f32f2ea61d862748e4a"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/packages/backend/openapi.yaml": {
+    "mtime": 1778275454.2096205,
+    "hash": "24212e7154bb8803a0abbc37e92ff107"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/README.md": {
+    "mtime": 1778251764.8054993,
+    "hash": "2936fa4681066132856d1fae811058d7"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/PHASE-FINAL.md": {
+    "mtime": 1778251438.1114864,
+    "hash": "c3d2c256b66e8cc62b40d5abdac29b39"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/pnpm-workspace.yaml": {
+    "mtime": 1778251488.1999514,
+    "hash": "15e915330bfbfeab7601d69ae0a8a2ac"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/archive/phase2.md": {
+    "mtime": 1778251438.1121593,
+    "hash": "eaad5e33794d1fb2a6a21e6082f4b5c6"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/archive/phase1.md": {
+    "mtime": 1778251438.1119719,
+    "hash": "62f124dca22dc5dcdbc6f428ee293954"
+  },
+  "/Users/anoushk/Developer/Hackathon/ethprague/repo/packages/backend/openapi.yaml": {
+    "mtime": 1778251488.4583473,
+    "hash": "24212e7154bb8803a0abbc37e92ff107"
+  }
+}

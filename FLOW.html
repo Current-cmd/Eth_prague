@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShieldPass — Code Flow</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --ink: #0d1117;
+    --panel: #161b22;
+    --rule: #30363d;
+    --paper: #e6edf3;
+    --paper2: #8b949e;
+    --amber: #d29922;
+    --verify: #3fb950;
+    --alert: #f85149;
+    --purple: #a371f7;
+    --blue: #58a6ff;
+    --teal: #39d353;
+    --orange: #e3b341;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--rule);
+    padding: 28px 48px 24px;
+    display: flex; align-items: baseline; gap: 20px;
+  }
+  header h1 { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+  header p { color: var(--paper2); font-size: 13px; }
+
+  /* ── Layout ── */
+  .layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 77px); }
+
+  /* ── Sidebar nav ── */
+  nav {
+    border-right: 1px solid var(--rule);
+    padding: 24px 0;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  nav .section-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--paper2); padding: 8px 20px 4px; margin-top: 12px;
+  }
+  nav a {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 20px; color: var(--paper2); text-decoration: none;
+    font-size: 13px; border-left: 2px solid transparent;
+    transition: all .15s;
+  }
+  nav a:hover { color: var(--paper); background: rgba(255,255,255,.04); }
+  nav a.active { color: var(--blue); border-left-color: var(--blue); background: rgba(88,166,255,.06); }
+  nav .dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  /* ── Main content ── */
+  main { padding: 40px 48px; overflow-x: hidden; }
+
+  section { margin-bottom: 72px; scroll-margin-top: 24px; }
+  section h2 {
+    font-size: 20px; font-weight: 600; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  section .subtitle { color: var(--paper2); font-size: 13px; margin-bottom: 28px; }
+
+  /* ── Step cards (submission flow) ── */
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 32px; }
+  .step-card {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+    cursor: pointer;
+    transition: border-color .15s, transform .15s;
+  }
+  .step-card:hover { border-color: var(--blue); transform: translateY(-2px); }
+  .step-card.active { border-color: var(--amber); background: rgba(210,153,34,.07); }
+  .step-num {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .14em;
+    color: var(--paper2); margin-bottom: 6px;
+  }
+  .step-name { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+  .step-files { font-size: 11px; color: var(--paper2); }
+  .step-files code {
+    display: block; font-family: 'SFMono-Regular', Consolas, monospace;
+    background: rgba(255,255,255,.05); padding: 1px 5px;
+    border-radius: 3px; margin-top: 3px; font-size: 10.5px;
+  }
+  .step-arrow {
+    position: absolute; right: -20px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--rule); font-size: 18px; z-index: 1;
+  }
+
+  /* ── Diagram container ── */
+  .diagram-wrap {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 32px;
+    overflow-x: auto;
+  }
+  .diagram-wrap .mermaid { min-width: 600px; }
+
+  /* ── Detail panel ── */
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+  .detail-card {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .detail-card h4 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--paper2); margin-bottom: 12px;
+  }
+  .detail-card .file-link {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 0; border-bottom: 1px solid var(--rule);
+    font-size: 12.5px;
+  }
+  .detail-card .file-link:last-child { border-bottom: none; }
+  .detail-card .file-link code {
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    font-size: 11.5px; color: var(--blue);
+  }
+  .detail-card .file-link .fn-list {
+    font-size: 10.5px; color: var(--paper2); margin-top: 2px;
+  }
+  .badge {
+    display: inline-block; padding: 2px 7px; border-radius: 10px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+  }
+  .badge-frontend { background: rgba(88,166,255,.15); color: var(--blue); }
+  .badge-backend  { background: rgba(227,179,65,.15); color: var(--orange); }
+  .badge-zk       { background: rgba(163,113,247,.15); color: var(--purple); }
+  .badge-contract { background: rgba(63,185,80,.15); color: var(--verify); }
+  .badge-ens      { background: rgba(57,211,83,.12); color: var(--teal); }
+
+  /* ── Community chips ── */
+  .community-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    padding: 5px 12px; border-radius: 20px; font-size: 12px;
+    border: 1px solid var(--rule); cursor: pointer;
+    transition: all .15s;
+  }
+  .chip:hover { border-color: var(--blue); }
+
+  /* ── Callout ── */
+  .callout {
+    border-left: 3px solid var(--amber);
+    background: rgba(210,153,34,.07);
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .callout strong { color: var(--amber); }
+
+  /* ── Code block ── */
+  pre {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 16px;
+    overflow-x: auto;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    margin: 12px 0;
+  }
+  .kw { color: var(--purple); }
+  .fn { color: var(--blue); }
+  .str { color: var(--verify); }
+  .cm { color: var(--paper2); font-style: italic; }
+  .num { color: var(--orange); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚐ ShieldPass</h1>
+  <p>Interactive code flow — generated from graphify graph.json (415 nodes · 718 links)</p>
+</header>
+
+<div class="layout">
+
+<!-- ── Sidebar ── -->
+<nav>
+  <div class="section-label">Overview</div>
+  <a href="#system" class="active"><span class="dot" style="background:#58a6ff"></span>System Map</a>
+  <a href="#submission"><span class="dot" style="background:#d29922"></span>Submission Flow</a>
+
+  <div class="section-label">Layers</div>
+  <a href="#frontend"><span class="dot" style="background:#58a6ff"></span>Frontend</a>
+  <a href="#zk"><span class="dot" style="background:#a371f7"></span>ZK Circuit</a>
+  <a href="#backend"><span class="dot" style="background:#e3b341"></span>Backend</a>
+  <a href="#contracts"><span class="dot" style="background:#3fb950"></span>Contracts</a>
+  <a href="#ens"><span class="dot" style="background:#39d353"></span>ENS Layer</a>
+
+  <div class="section-label">Concepts</div>
+  <a href="#poseidon"><span class="dot" style="background:#f78166"></span>Poseidon Hash</a>
+  <a href="#merkle"><span class="dot" style="background:#79c0ff"></span>Merkle Tree</a>
+  <a href="#nullifier"><span class="dot" style="background:#ffa657"></span>Nullifier</a>
+</nav>
+
+<!-- ── Main ── -->
+<main>
+
+<!-- ══════════════════════════════════ SYSTEM MAP ══════════════════════════════════ -->
+<section id="system">
+  <h2>🗺 System Map</h2>
+  <p class="subtitle">How all four packages interact — from browser to Sepolia</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TB
+    subgraph BROWSER["🖥 Browser  ·  packages/frontend"]
+        direction TB
+        BP["BadgePicker.tsx\n(badge selection)"]
+        S1["Submit Step 1\nWallet + Badge"]
+        S2["Submit Step 2\nEvidence + Summary"]
+        S3["Submit Step 3\nClassify + Pin JSON"]
+        S4["Submit Step 4\nZK Proof polling"]
+        S5["Submit Step 5\nOn-chain submit"]
+        POS_JS["poseidon.ts\nleafHash · innerHash\nnullifierHash"]
+        MERK["merkle.ts\nbuildTree(65536 leaves)\nbuildPath(leafIndex)"]
+    end
+
+    subgraph BACKEND["⚙ Backend  ·  packages/backend"]
+        direction TB
+        API["Fastify server :8787"]
+        IPFS_SVC["ipfs.ts\nPinata pin + reportHash"]
+        PROVER["proverClient.ts\nFIFO queue (max 1)"]
+        DB["SQLite\nproof_jobs · reports"]
+        IDX["indexer.ts\nSepolia event watcher"]
+    end
+
+    subgraph ZK["🔮 ZK Prover  ·  packages/zk"]
+        direction TB
+        HOST["host/main.rs\nshieldpass-prove binary"]
+        GUEST["guest/main.rs\nRISC Zero zkVM circuit"]
+        VERIFY_MP["verify_merkle_path()"]
+        NULL_H["nullifier_hash()"]
+        JOURNAL["Journal commit\n{root,reportHash,nullifier,\nperiodId,ensNode}"]
+    end
+
+    subgraph SEPOLIA["⛓ Sepolia Contracts  ·  packages/contracts"]
+        direction TB
+        RR["ReportRegistry\n0x4935..."]
+        BTM["BadgeTreeManager\n0xD23B..."]
+        CR["CompanyRegistry\n0xba47..."]
+        RES["ShieldPassResolver\n0x112F..."]
+        RISC0V["RISC Zero Verifier\n0x925d..."]
+    end
+
+    BP --> S1 --> S2 --> S3 --> S4 --> S5
+    S4 -- "POST /proofs" --> API
+    S3 -- "POST /ipfs/pin-json" --> API
+    S2 -- "POST /ipfs/pin" --> API
+    API --> IPFS_SVC
+    API --> PROVER
+    PROVER -- "stdin JSON" --> HOST
+    HOST --> GUEST
+    GUEST --> VERIFY_MP
+    GUEST --> NULL_H
+    GUEST --> JOURNAL
+    HOST -- "ProofReceipt JSON" --> PROVER
+    PROVER --> DB
+    DB -- "poll GET /proofs/:id" --> S4
+    S5 -- "writeContract submitReport()" --> RR
+    RR -- "isRootFresh?" --> BTM
+    RR -- "verify(seal,imageId,digest)" --> RISC0V
+    RR -- "emit ReportSubmitted" --> IDX
+    IDX --> DB
+    POS_JS -.uses.- S4
+    MERK -.uses.- S4
+    BTM --> CR
+
+    classDef fe fill:#0d2137,stroke:#58a6ff,color:#58a6ff
+    classDef be fill:#1c1610,stroke:#e3b341,color:#e3b341
+    classDef zk fill:#160d24,stroke:#a371f7,color:#a371f7
+    classDef ct fill:#0d1f12,stroke:#3fb950,color:#3fb950
+    class BP,S1,S2,S3,S4,S5,POS_JS,MERK fe
+    class API,IPFS_SVC,PROVER,DB,IDX be
+    class HOST,GUEST,VERIFY_MP,NULL_H,JOURNAL zk
+    class RR,BTM,CR,RES,RISC0V ct
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════ SUBMISSION FLOW ══════════════════════════════════ -->
+<section id="submission">
+  <h2>🔄 Step-by-Step Submission Flow</h2>
+  <p class="subtitle">Every action the user takes, every function that runs</p>
+
+  <div class="steps">
+    <div class="step-card active">
+      <div class="step-num">Step 01</div>
+      <div class="step-name">Sign In</div>
+      <div class="step-files">
+        Wallet + Badge
+        <code>BadgePicker.tsx</code>
+        <code>demoWorkers.ts</code>
+        <code>wagmi useAccount</code>
+      </div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 02</div>
+      <div class="step-name">Evidence</div>
+      <div class="step-files">
+        Files + Summary
+        <code>sanitize/exif.ts</code>
+        <code>sanitize/pdf.ts</code>
+        <code>POST /ipfs/pin</code>
+      </div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 03</div>
+      <div class="step-name">Classify</div>
+      <div class="step-files">
+        Category + Fields
+        <code>StructuredFields.tsx</code>
+        <code>POST /ipfs/pin-json</code>
+        <code>computeReportHash()</code>
+      </div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 04</div>
+      <div class="step-name">Prove</div>
+      <div class="step-files">
+        ZK proof generation
+        <code>merkle.ts buildTree</code>
+        <code>POST /proofs</code>
+        <code>shieldpass-prove</code>
+      </div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 05</div>
+      <div class="step-name">Submit</div>
+      <div class="step-files">
+        On-chain tx
+        <code>ReportRegistry</code>
+        <code>RISC0 Verifier</code>
+        <code>emit ReportSubmitted</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+sequenceDiagram
+    actor W as Worker (Browser)
+    participant BP as BadgePicker.tsx
+    participant SUB as Submit.tsx
+    participant BE as Backend :8787
+    participant PIN as Pinata IPFS
+    participant ZK as shieldpass-prove
+    participant ETH as Sepolia
+
+    Note over W,ETH: ── STEP 1: Identity ──
+    W->>BP: Select demo worker
+    BP->>BP: validateInTree(badge, company, leafIndex)
+    BP-->>SUB: onPick({badge, pseudonym, ensNode, leafIndex})
+    SUB->>SUB: state.account ✓ badge ✓ pseudonym ✓ company ✓
+    Note over SUB: canAdvance = true → Continue
+
+    Note over W,ETH: ── STEP 2: Evidence ──
+    W->>SUB: Upload file + type summary
+    SUB->>SUB: sanitizeImage() strip EXIF/XMP
+    SUB->>BE: POST /ipfs/pin {file}
+    BE->>PIN: pinFileToIPFS()
+    PIN-->>BE: {cid, size}
+    BE-->>SUB: {cid}
+    SUB->>SUB: evidence[] += {cid, sha256, mime}
+
+    Note over W,ETH: ── STEP 3: Classify + Pin ──
+    W->>SUB: Pick category, fill title, click Pin
+    SUB->>BE: POST /ipfs/pin-json {payload}
+    BE->>BE: canonicalStringify(payload) RFC-8785
+    BE->>BE: computeReportHash(ensNode, category, payload)
+    BE->>PIN: pinJSONToIPFS()
+    PIN-->>BE: {cid}
+    BE-->>SUB: {cid, reportHash}
+    SUB->>SUB: state.payloadCid ✓ reportHash ✓
+    Note over SUB: canAdvance = true → Continue
+
+    Note over W,ETH: ── STEP 4: ZK Proof ──
+    SUB->>SUB: buildTree(badges[8], depth=16) → 65536 leaves
+    SUB->>SUB: buildPath(tree, leafIndex) → path[16] + indices[16]
+    SUB->>SUB: periodId = floor(now / 7_776_000)
+    SUB->>BE: POST /proofs {badge,root,merklePath,merkleIndices,reportHash,periodId,ensNode}
+    BE->>BE: INSERT proof_job(status=queued)
+    BE->>ZK: spawn shieldpass-prove < stdin JSON
+    ZK->>ZK: verify_merkle_path(badge, path, root) ✓
+    ZK->>ZK: nullifier = Poseidon(2, badge, periodId)
+    ZK->>ZK: RISC Zero STARK proof generation
+    ZK->>ZK: commit Journal{root,reportHash,nullifier,periodId,ensNode}
+    ZK-->>BE: ProofReceipt{seal, imageId, journal}
+    BE->>BE: UPDATE proof_job(status=fulfilled, receipt_json)
+    loop Poll every 5s
+        SUB->>BE: GET /proofs/:requestId
+        BE-->>SUB: {status: "fulfilled", receipt}
+    end
+    Note over SUB: canAdvance = true → Continue
+
+    Note over W,ETH: ── STEP 5: On-chain ──
+    W->>SUB: Check confirmation box, click Submit
+    SUB->>ETH: writeContract ReportRegistry.submitReport(seal, root, reportHash, nullifier, periodId, ensNode, category, pseudonymNode, cid)
+    ETH->>ETH: require !isNullifierUsed[nullifier]
+    ETH->>ETH: require badges.isRootFresh(ensNode, root)
+    ETH->>ETH: journalDigest = sha256(abi.encode(root,reportHash,nullifier,periodId,ensNode))
+    ETH->>ETH: verifier.verify(seal, imageId, journalDigest)
+    ETH->>ETH: isNullifierUsed[nullifier] = true
+    ETH-->>SUB: emit ReportSubmitted(ensNode, reportHash, nullifier, ...)
+    SUB->>SUB: navigate /reports/:reportHash
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════ FRONTEND ══════════════════════════════════ -->
+<section id="frontend">
+  <h2><span style="color:#58a6ff">⬡</span> Frontend — packages/frontend</h2>
+  <p class="subtitle">React + Vite + wagmi. Graphify community 0 (App routing) + community 1 (BadgePicker) + community 8 (sanitize)</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    subgraph ROUTING["App.tsx  ·  Community 0"]
+        APP["App()"] --> TOPNAV["TopNav()"]
+        APP --> ROUTES["React Router"]
+        ROUTES --> FEED["/feed\nFeed.tsx"]
+        ROUTES --> SUBMIT["/submit\nSubmit.tsx ★"]
+        ROUTES --> ADMIN["/admin\nCompanyAdmin.tsx"]
+        ROUTES --> DETAIL["/reports/:id\nReportDetail.tsx"]
+    end
+
+    subgraph STEP1["Step 1  ·  Community 1"]
+        BP["BadgePicker()"]
+        BP --> DEMO["Demo tab\nDEMO_WORKERS[]"]
+        BP --> UPLOAD["Upload tab\nuseRef file input"]
+        DEMO --> VIT["validateInTree()\nbadge === leaves[leafIndex]"]
+        UPLOAD --> VIT
+    end
+
+    subgraph SANITIZE["Step 2  ·  Community 8"]
+        EXIF["sanitizeImage()\nstrip EXIF/XMP\nCanvas redraw"]
+        PDF["sanitizePdf()\nqpdf pass"]
+        SHA["sha256OfBlob()"]
+    end
+
+    subgraph CRYPTO["poseidon.ts + merkle.ts  ·  Community 7/1"]
+        LH["leafHash(badge)\nPoseidon(0,badge)"]
+        IH["innerHash(l,r)\nPoseidon(1,l,r)"]
+        NH["nullifierHash(badge,pid)\nPoseidon(2,badge,pid)"]
+        BT["buildTree(badges,16)\n65536 leaves"]
+        PTH["buildPath(tree,idx)\n16 siblings"]
+        BT --> LH
+        BT --> IH
+        PTH --> BT
+    end
+
+    SUBMIT --> BP
+    SUBMIT --> EXIF
+    SUBMIT --> SANITIZE
+    SUBMIT --> PTH
+
+    classDef fe fill:#0d2137,stroke:#58a6ff,color:#79c0ff
+    class APP,TOPNAV,ROUTES,FEED,SUBMIT,ADMIN,DETAIL,BP,DEMO,UPLOAD,VIT,EXIF,PDF,SHA,LH,IH,NH,BT,PTH fe
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-card">
+      <h4>Key Files <span class="badge badge-frontend">Frontend</span></h4>
+      <div class="file-link">
+        <div>
+          <code>src/pages/Submit.tsx</code>
+          <div class="fn-list">SubmitFlowState · canAdvance · Step1–5 · Step4 proof polling</div>
+        </div>
+      </div>
+      <div class="file-link">
+        <code>src/components/BadgePicker.tsx</code>
+        <div class="fn-list">handleDemoSelect() · handleUpload() · validateInTree()</div>
+      </div>
+      <div class="file-link">
+        <code>src/lib/merkle.ts</code>
+        <div class="fn-list">buildTree() · buildPath() · MerkleTree · MerklePath</div>
+      </div>
+      <div class="file-link">
+        <code>src/lib/poseidon.ts</code>
+        <div class="fn-list">leafHash() · innerHash() · nullifierHash() · ZERO_LEAF</div>
+      </div>
+      <div class="file-link">
+        <code>src/lib/demoWorkers.ts</code>
+        <div class="fn-list">DEMO_WORKERS[] · COMPANY_LEAVES[] · leavesFor()</div>
+      </div>
+    </div>
+    <div class="detail-card">
+      <h4>Data Flow Through Steps</h4>
+      <div class="file-link"><code>state.account</code><div class="fn-list">set by wagmi useAccount on wallet connect</div></div>
+      <div class="file-link"><code>state.badge</code><div class="fn-list">32-byte secret from demoWorkers / uploaded JSON</div></div>
+      <div class="file-link"><code>state.evidence[]</code><div class="fn-list">{cid, sha256, mime} per pinned file</div></div>
+      <div class="file-link"><code>state.reportHash</code><div class="fn-list">returned by /ipfs/pin-json</div></div>
+      <div class="file-link"><code>state.proofReceipt</code><div class="fn-list">{seal, imageId, journal} — gates Continue on step 4</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════ ZK CIRCUIT ══════════════════════════════════ -->
+<section id="zk">
+  <h2><span style="color:#a371f7">⬡</span> ZK Circuit — packages/zk</h2>
+  <p class="subtitle">RISC Zero zkVM. Graphify communities 7 (guest circuit) + 13 (methods lib) + 21 (demo root) + 24 (image_id)</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TB
+    subgraph HOST["host/  ·  Community 24/21"]
+        direction LR
+        PROVE_BIN["shieldpass-prove\nbinary (stdin→stdout)"]
+        IMG_BIN["image-id binary\nprints IMAGE_ID"]
+        DEMO_BIN["compute-demo-root\nbinary"]
+        PARSE["parse_hex()"]
+        RP["run_proof()"]
+        PROVE_BIN --> PARSE --> RP
+        DEMO_BIN --> CBV["compute_badge_value()\nkeccak256(badge-i) % BN254_P"]
+    end
+
+    subgraph METHODS["methods/  ·  Community 13"]
+        LIB["lib.rs\nshared Poseidon fns"]
+        LH2["leaf_hash()"]
+        IH2["inner_hash()"]
+        NH2["nullifier_hash()"]
+        VMP2["verify_merkle_path()"]
+        ELF["SHIELDPASS_GUEST_ELF\nembedded via risc0-build"]
+        LIB --> LH2 & IH2 & NH2 & VMP2
+    end
+
+    subgraph GUEST["guest/src/main.rs  ·  Community 7  ·  Runs INSIDE zkVM"]
+        direction TB
+        IN1["PRIVATE INPUT\nbadge[32]\nmerklePath[][32]\nmerkleIndices[]"]
+        IN2["PUBLIC INPUT\nroot[32]\nreportHash[32]\nperiodId u64\nensNode[32]"]
+        VMP["verify_merkle_path()\nbadge → leaf_hash → fold 16 levels → root"]
+        ASSERT["assert! root matches"]
+        NULLCALC["nullifier_hash(badge, periodId)\nPoseidon(2, badge, pid)"]
+        JOURNAL["env::commit_slice(&journal.abi_encode())\n{root,reportHash,nullifier,periodId,ensNode}"]
+        IN1 --> VMP --> ASSERT --> NULLCALC --> JOURNAL
+        IN2 --> VMP
+        IN2 --> JOURNAL
+    end
+
+    subgraph OUTPUT["ProofReceipt  (stdout JSON)"]
+        SEAL["seal: 0x03...\n(STARK or dev-mode mock)"]
+        IMGID["imageId: 0x42fe81...\n(hash of compiled ELF)"]
+        JOUT["journal: {root, reportHash,\nnullifier, periodId, ensNode}"]
+    end
+
+    RP --> GUEST
+    GUEST --> OUTPUT
+    METHODS -.provides.- GUEST
+
+    classDef zk fill:#160d24,stroke:#a371f7,color:#bf8fff
+    class PROVE_BIN,IMG_BIN,DEMO_BIN,PARSE,RP,CBV,LIB,LH2,IH2,NH2,VMP2,ELF,IN1,IN2,VMP,ASSERT,NULLCALC,JOURNAL,SEAL,IMGID,JOUT zk
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Why Poseidon?</strong> SHA256 and keccak256 require thousands of arithmetic gates inside a ZK circuit. Poseidon is designed for ZK — it uses field arithmetic over BN254 that maps directly to circuit constraints, making it ~100× more efficient. The <code>light-poseidon</code> crate uses circom-compatible constants so the JS <code>poseidon-lite</code> library and Solidity <code>PoseidonT3.sol</code> all produce identical outputs.
+  </div>
+
+  <div class="callout" style="border-color:#a371f7; background:rgba(163,113,247,.07)">
+    <strong>Domain tags:</strong> Tag 0 = leaf hash · Tag 1 = inner node · Tag 2 = nullifier. These prevent cross-context collisions — a leaf value can never equal an inner node hash because they use different first inputs.
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-card">
+      <h4>Poseidon Hash Scheme</h4>
+      <pre><span class="cm">// Leaf:    domain tag 0</span>
+<span class="fn">leaf_hash</span>(badge) = Poseidon([<span class="num">0</span>, badge])
+
+<span class="cm">// Inner:   domain tag 1</span>
+<span class="fn">inner_hash</span>(l,r) = Poseidon([<span class="num">1</span>, l, r])
+
+<span class="cm">// Nullifier: domain tag 2</span>
+<span class="fn">nullifier_hash</span>(badge, period)
+  = Poseidon([<span class="num">2</span>, badge, period])</pre>
+    </div>
+    <div class="detail-card">
+      <h4>Merkle Path Verification (16 levels)</h4>
+      <pre><span class="kw">fn</span> <span class="fn">verify_merkle_path</span>(badge, path, indices, root) {
+  <span class="kw">let mut</span> node = <span class="fn">leaf_hash</span>(badge);
+  <span class="kw">for</span> (sib, dir) <span class="kw">in</span> path.zip(indices) {
+    node = <span class="kw">if</span> dir == <span class="num">0</span> {
+      <span class="fn">inner_hash</span>(&node, sib)  <span class="cm">// we're left</span>
+    } <span class="kw">else</span> {
+      <span class="fn">inner_hash</span>(sib, &node)  <span class="cm">// we're right</span>
+    };
+  }
+  node == root  <span class="cm">// must equal on-chain root</span>
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════ BACKEND ══════════════════════════════════ -->
+<section id="backend">
+  <h2><span style="color:#e3b341">⬡</span> Backend — packages/backend</h2>
+  <p class="subtitle">Fastify API + SQLite + Pinata. Graphify community 2 (server/routes)</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    subgraph SERVER["server.ts  ·  Community 2"]
+        FASTIFY["Fastify :8787\n+ @fastify/cors"]
+        FASTIFY --> R_IPFS["/ipfs/pin\n/ipfs/pin-json"]
+        FASTIFY --> R_PROOF["/proofs  POST\n/proofs/:id  GET"]
+        FASTIFY --> R_REPORTS["/reports\n/reports/:id"]
+        FASTIFY --> R_CO["/companies/:ens"]
+        FASTIFY --> HEALTH["/healthz"]
+    end
+
+    subgraph SERVICES["services/"]
+        IPFS_S["ipfs.ts\ncanonicalStringify(RFC-8785)\ncomputeReportHash()\npinFile() · pinJson()"]
+        PROV["proverClient.ts\nFIFO queue[]\ndrainQueue()\nrunProof()\nproveLocally()"]
+        DB_S["db.ts  SQLite\ninsertProofJob()\nupdateProofJob()\ngetProofJob()"]
+        IDX_S["indexer.ts\nReportSubmitted events\npoll Sepolia every 12s"]
+        ENS_S["ensReader.ts\nviem publicClient\ngetText(node, key)"]
+    end
+
+    R_IPFS --> IPFS_S
+    R_PROOF --> PROV
+    R_PROOF --> DB_S
+    R_REPORTS --> DB_S
+    PROV --> DB_S
+    PROV -- "spawn shieldpass-prove" --> ZK_BIN["ZK binary\n(1 at a time)"]
+    IDX_S --> DB_S
+
+    classDef be fill:#1c1610,stroke:#e3b341,color:#f0c060
+    class FASTIFY,R_IPFS,R_PROOF,R_REPORTS,R_CO,HEALTH,IPFS_S,PROV,DB_S,IDX_S,ENS_S,ZK_BIN be
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Why a serializing queue?</strong> RISC Zero proof generation uses all CPU cores + 4–8 GB RAM. Running two simultaneously OOMs the machine. The queue (<code>proverClient.ts</code>) ensures only one <code>shieldpass-prove</code> process runs at a time. New jobs wait in <code>queue[]</code>; <code>drainQueue()</code> is called after each job finishes.
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-card">
+      <h4>reportHash Construction</h4>
+      <pre><span class="cm">// RFC-8785 canonical JSON first</span>
+canonical = <span class="fn">canonicalStringify</span>(payload)
+contentHash = <span class="fn">keccak256</span>(canonical)
+
+<span class="cm">// Domain-separated hash</span>
+reportHash = <span class="fn">keccak256</span>(
+  <span class="str">"SHIELDPASS_REPORT_v1"</span>
+  ++ ensNode          <span class="cm">// 32 bytes</span>
+  ++ category         <span class="cm">// 1 byte</span>
+  ++ contentHash      <span class="cm">// 32 bytes</span>
+)</pre>
+    </div>
+    <div class="detail-card">
+      <h4>Proof Job Lifecycle</h4>
+      <pre>POST /proofs
+  → INSERT status=<span class="str">"queued"</span>
+  → prover.submit(id, req)  <span class="cm">// enqueue</span>
+
+<span class="cm">// In queue worker:</span>
+proveLocally(req)
+  → spawn shieldpass-prove
+  → collect stdout
+  → parse ProofReceipt
+  → UPDATE status=<span class="str">"fulfilled"</span>
+     receipt_json = JSON
+
+<span class="cm">// Frontend polls:</span>
+GET /proofs/:id
+  → {status, receipt?}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════ CONTRACTS ══════════════════════════════════ -->
+<section id="contracts">
+  <h2><span style="color:#3fb950">⬡</span> Contracts — packages/contracts</h2>
+  <p class="subtitle">Solidity 0.8.26 on Sepolia. Graphify community 19 (deployment state)</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TB
+    subgraph REGISTRY["CompanyRegistry  0xba47..."]
+        CR_REG["register(ensNode, admin)"]
+        CR_ADM["adminOf(ensNode) → address"]
+    end
+
+    subgraph BTM_BOX["BadgeTreeManager  0xD23B..."]
+        direction LR
+        BTM_ROT["rotateRoot(ensNode, newRoot)\nonlyAdmin"]
+        BTM_RING["ring buffer\n8 slots × 7-day TTL"]
+        BTM_CHK["isRootFresh(ensNode, root) → bool"]
+        BTM_ROT --> BTM_RING --> BTM_CHK
+    end
+
+    subgraph RR_BOX["ReportRegistry  0x4935..."]
+        direction TB
+        RR_SUB["submitReport(\n  seal, root, reportHash,\n  nullifier, periodId, ensNode,\n  category, pseudonymNode, cid\n)"]
+        RR_C1["require !isNullifierUsed[nullifier]"]
+        RR_C2["require isRootFresh(ensNode,root)"]
+        RR_C3["journalDigest = sha256(\n  abi.encode(root,reportHash,\n  nullifier,periodId,ensNode)\n)"]
+        RR_C4["verifier.verify(seal,imageId,digest)"]
+        RR_C5["isNullifierUsed[nullifier]=true"]
+        RR_EVT["emit ReportSubmitted(...)"]
+        RR_SUB --> RR_C1 --> RR_C2 --> RR_C3 --> RR_C4 --> RR_C5 --> RR_EVT
+    end
+
+    subgraph RESOLVER["ShieldPassResolver  0x112F..."]
+        RES_PT["parentText[companyNode][key]"]
+        RES_ST["subText[workerNode][key]"]
+        RES_SET["setText(parentNode,key,val)\nsetSubText(parentNode,workerNode,key,val)"]
+        RES_RES["resolve(dnsName, data)\nENSIP-10 wildcard"]
+        RES_SET --> RES_PT & RES_ST
+        RES_RES --> RES_ST --> RES_PT
+    end
+
+    RISC0["RISC Zero Verifier  0x925d..."]
+
+    REGISTRY -. "adminOf check" .-> BTM_BOX
+    REGISTRY -. "adminOf check" .-> RESOLVER
+    BTM_BOX --> RR_C2
+    RISC0 --> RR_C4
+
+    classDef ct fill:#0d1f12,stroke:#3fb950,color:#56d364
+    class CR_REG,CR_ADM,BTM_ROT,BTM_RING,BTM_CHK,RR_SUB,RR_C1,RR_C2,RR_C3,RR_C4,RR_C5,RR_EVT,RES_PT,RES_ST,RES_SET,RES_RES,RISC0 ct
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-card">
+      <h4>On-chain Verification Logic</h4>
+      <pre><span class="cm">// 1. No replay</span>
+<span class="kw">require</span>(!isNullifierUsed[nullifier]);
+
+<span class="cm">// 2. Tree root is recent (≤7 days)</span>
+<span class="kw">require</span>(badges.isRootFresh(ensNode, root));
+
+<span class="cm">// 3. Rebuild what the ZK guest committed</span>
+digest = <span class="fn">sha256</span>(abi.encode(
+  root, reportHash, nullifier, periodId, ensNode
+));
+
+<span class="cm">// 4. Verify STARK proof cryptographically</span>
+verifier.<span class="fn">verify</span>(seal, imageId, digest);
+
+<span class="cm">// 5. Mark nullifier used forever</span>
+isNullifierUsed[nullifier] = <span class="kw">true</span>;</pre>
+    </div>
+    <div class="detail-card">
+      <h4>Deployed Addresses (Sepolia)</h4>
+      <div class="file-link"><code>CompanyRegistry</code><div class="fn-list">0xba477531E570b7d80bcA28F404bF74E5f4f555f8</div></div>
+      <div class="file-link"><code>BadgeTreeManager</code><div class="fn-list">0xD23B95dee2753C56b4293a982546ed00c7ad6294</div></div>
+      <div class="file-link"><code>ReportRegistry</code><div class="fn-list">0x493511b88Ffeee437Fc9e97C110Aa7eBb32CB5F1</div></div>
+      <div class="file-link"><code>ShieldPassResolver</code><div class="fn-list">0x112F41Dd39c7913BBD88d7E6E194F77b70e4616c</div></div>
+      <div class="file-link"><code>RISC0 Verifier</code><div class="fn-list">0x925d8331ddc0a1F0d96E68CF073DFE1d92b69187</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════ ENS ══════════════════════════════════ -->
+<section id="ens">
+  <h2><span style="color:#39d353">⬡</span> ENS Identity Layer</h2>
+  <p class="subtitle">How worker ENS names become verifiable credentials. Graphify hyperedge: ENS Identity Layer</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    subgraph NAMES["ENS Name Hierarchy"]
+        ROOT2["eth"]
+        DEMO["shieldpass-demo.eth"]
+        ACME["acme.shieldpass-demo.eth\nensNode = 0x47d9..."]
+        WORKERS["workers.acme.shieldpass-demo.eth"]
+        W1["worker-7f3a.workers.acme...\npseudonymNode = 0xac13..."]
+        W2["worker-c12d.workers.acme...\npseudonymNode = 0x9e94..."]
+        ROOT2 --> DEMO --> ACME --> WORKERS --> W1 & W2
+    end
+
+    subgraph RECORDS["Text Records (ShieldPassResolver)"]
+        PR["parentText[acmeNode]\nshieldpass.badge-tree-root\nshieldpass.registry\nshieldpass.attestation-issuer"]
+        SR1["subText[worker7f3aNode]\nshieldpass.zk-credential\nshieldpass.reports-submitted"]
+        SR2["subText[workerC12dNode]\nshieldpass.zk-credential\nshieldpass.reports-submitted"]
+    end
+
+    subgraph NAMEHASH["namehash() algorithm"]
+        NH["namehash('acme.shieldpass-demo.eth')\n= keccak256(namehash('shieldpass-demo.eth')\n   ++ keccak256('acme'))"]
+    end
+
+    ACME -.sets.- PR
+    W1 -.sets.- SR1
+    W2 -.sets.- SR2
+    NAMES -.uses.- NAMEHASH
+
+    classDef ens fill:#0d1f16,stroke:#39d353,color:#56d364
+    class ROOT2,DEMO,ACME,WORKERS,W1,W2,PR,SR1,SR2,NH ens
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Wildcard resolution (ENSIP-10):</strong> The <code>ShieldPassResolver</code> implements <code>resolve(dnsName, data)</code>. When you look up <code>worker-7f3a.workers.acme.shieldpass-demo.eth</code>, ENS calls this function. It strips the first label, reconstructs the parent node from remaining labels, and returns <code>subText[workerNode][key]</code> — falling back to <code>parentText[companyNode][key]</code>. No individual records need to be created per worker name.
+  </div>
+</section>
+
+<!-- ══════════════════════════════════ POSEIDON ══════════════════════════════════ -->
+<section id="poseidon">
+  <h2><span style="color:#f78166">⬡</span> Poseidon Hash</h2>
+  <p class="subtitle">Why it's used and how the three implementations stay consistent</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    subgraph IMPLS["Three Implementations — Same Output"]
+        RUST["Rust  ·  light-poseidon crate\nPoseidon::new_circom(2 or 3)\n.hash_bytes_be(&inputs)"]
+        JS["JavaScript  ·  poseidon-lite npm\nposeidon2([a,b])\nposeidon3([a,b,c])"]
+        SOL["Solidity  ·  PoseidonT3.sol\nbytecode-deployed contract\nhash2(a,b)  hash3(a,b,c)\nencodeWithSelector(0x29a5f2f6,...)"]
+    end
+
+    PROOF["Zero leaf = leafHash(0x00...00)\n= 0x2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864"]
+    ROOT["Demo tree root\n= 0x1f2f5d3c63aad5dc4d93e2d2b34dc91e8c945467b416f8002715cd72340d9162"]
+
+    RUST & JS & SOL --> PROOF
+    RUST & JS & SOL --> ROOT
+
+    classDef impl fill:#1f0e0e,stroke:#f78166,color:#ffa198
+    class RUST,JS,SOL impl
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════ MERKLE ══════════════════════════════════ -->
+<section id="merkle">
+  <h2><span style="color:#79c0ff">⬡</span> Merkle Tree</h2>
+  <p class="subtitle">65536-leaf depth-16 tree. Graphify hyperedge: Merkle Proof System</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TB
+    ROOT3["ROOT\n0x1f2f5d3c..."]
+    L1A["inner_hash(L,R)"]
+    L1B["inner_hash(L,R)"]
+    ROOT3 --> L1A & L1B
+
+    L2A["inner_hash(L,R)"] & L2B["inner_hash(L,R)"] & L2C["..."]
+    L1A --> L2A & L2B
+    L1B --> L2C
+
+    LF0["leaf_hash(badge-0)\n= Poseidon(0, 0x2e5c...)"]
+    LF1["leaf_hash(badge-1)"]
+    LF2["leaf_hash(badge-2)"]
+    LF_DOT["...badge 3–7..."]
+    LF_Z["ZERO_LEAF × 65528\nleaf_hash(0x00..00)"]
+
+    L2A --> LF0 & LF1
+    L2B --> LF2 & LF_DOT
+    L2C --> LF_Z
+
+    NOTE["Proof for badge-0:\nProvide 16 sibling hashes (path[])\n+ direction bits (indices[])\nRe-derive root bottom-up\nif root matches → badge is a member"]
+
+    classDef merkle fill:#0d1520,stroke:#79c0ff,color:#a5d6ff
+    class ROOT3,L1A,L1B,L2A,L2B,L2C,LF0,LF1,LF2,LF_DOT,LF_Z,NOTE merkle
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════ NULLIFIER ══════════════════════════════════ -->
+<section id="nullifier">
+  <h2><span style="color:#ffa657">⬡</span> Nullifier — Anti-Double-Report</h2>
+  <p class="subtitle">One report per worker per period, with zero identity leakage</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    BADGE["badge\n(private secret)"]
+    PERIOD["periodId\n= floor(now / 7_776_000)\n≈ one per quarter"]
+    NULL["nullifier\n= Poseidon(2, badge, periodId)"]
+    BADGE & PERIOD --> NULL
+
+    ONCHAIN["isNullifierUsed[nullifier]\non ReportRegistry"]
+    NULL --> ONCHAIN
+
+    SAME["Same badge\nDifferent period\n→ Different nullifier\n✓ Can file again"]
+    DIFF["Different badge\nSame period\n→ Different nullifier\n✓ Other workers unaffected"]
+    USED["Same badge\nSame period\n→ Same nullifier\n✗ require() reverts"]
+
+    NULL --> SAME & DIFF & USED
+
+    classDef null fill:#1f1500,stroke:#ffa657,color:#ffb966
+    class BADGE,PERIOD,NULL,ONCHAIN,SAME,DIFF,USED null
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Privacy property:</strong> The nullifier is published on-chain but reveals nothing about which badge produced it — it's just a Poseidon hash. Two nullifiers from the same worker in different periods are completely unlinkable. An observer can confirm "some badge holder filed in Q1" but cannot determine <em>which</em> badge, link it to another period, or count how many workers have filed.
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      background: '#161b22',
+      primaryColor: '#1c2128',
+      primaryTextColor: '#e6edf3',
+      primaryBorderColor: '#30363d',
+      lineColor: '#58a6ff',
+      secondaryColor: '#0d1117',
+      tertiaryColor: '#0d1117',
+      nodeBorder: '#30363d',
+      clusterBkg: '#0d1117',
+      titleColor: '#e6edf3',
+      edgeLabelBackground: '#0d1117',
+      fontSize: '13px'
+    },
+    flowchart: { curve: 'basis', useMaxWidth: true },
+    sequence: { useMaxWidth: true, mirrorActors: false }
+  });
+
+  // Active nav on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('nav a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id);
+        });
+      }
+    });
+  }, { threshold: 0.3 });
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

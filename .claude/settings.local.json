@@ -45,7 +45,8 @@
       "Bash(node -e ' *)",
       "Bash(node -e \"const { ethers } = require\\('ethers'\\); console.log\\(ethers.version\\);\")",
       "Bash(python3 -c \"print\\(len\\('worker-7f3a'\\), len\\('workers'\\), len\\('acme'\\), len\\('shieldpass-demo'\\), len\\('eth'\\)\\)\")",
-      "Bash(forge inspect *)"
+      "Bash(forge inspect *)",
+      "Bash(pnpm run *)"
     ],
     "additionalDirectories": [
       "/Users/Felix"
