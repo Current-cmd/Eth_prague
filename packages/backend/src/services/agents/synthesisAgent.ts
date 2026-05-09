@@ -92,6 +92,10 @@ const VERDICT_ICONS: Record<VerdictLabel, string> = {
   directly_refuted:               "✗",
 };
 
+const SNIPPET_LIMIT = 300;
+const trunc = (s: string) =>
+  s.length > SNIPPET_LIMIT ? s.slice(0, SNIPPET_LIMIT) + "…" : s;
+
 function formatScraperResults(results: ScraperResult[]): string {
   return results
     .map((r) => {
@@ -101,7 +105,7 @@ function formatScraperResults(results: ScraperResult[]): string {
           header,
           ...r.articles.map(
             (a) =>
-              `  Source: ${a.source} · ${a.date}\n  Title: ${a.title}\n  Snippet: ${a.snippet}`
+              `  Source: ${a.source}\n  Title: ${a.title}\n  Snippet: ${trunc(a.snippet)}`
           ),
         ].join("\n");
       }
@@ -109,7 +113,7 @@ function formatScraperResults(results: ScraperResult[]): string {
         return [
           header,
           ...r.pages.map(
-            (p) => `  URL: ${p.url}\n  Title: ${p.title}\n  Excerpt: ${p.excerpt}`
+            (p) => `  URL: ${p.url}\n  Title: ${p.title}\n  Excerpt: ${trunc(p.excerpt)}`
           ),
         ].join("\n");
       }

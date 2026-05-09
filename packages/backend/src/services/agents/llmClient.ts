@@ -103,6 +103,9 @@ async function callGlm(
   });
 
   const choice = response.choices[0];
+  console.debug(
+    `[llmClient] GLM finish_reason=${choice?.finish_reason} tool_calls=${choice?.message?.tool_calls?.length ?? 0} content_len=${choice?.message?.content?.length ?? 0}`
+  );
   const toolCall = choice?.message?.tool_calls?.[0];
   const args =
     toolCall && "function" in toolCall ? toolCall.function.arguments : undefined;
