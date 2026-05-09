@@ -6,7 +6,7 @@ import { namehash, type Hex } from "viem";
 import { api } from "../lib/api";
 import { SEPOLIA_ADDRESSES, SEPOLIA_CONFIG } from "@shieldpass/shared/chain";
 import { CompanyRegistryAbi, BadgeTreeManagerAbi, ShieldPassResolverAbi } from "@shieldpass/shared/abis";
-import { Btn, Modal, SectionHead, CategoryBadge, fmtRelative } from "../components/shared";
+import { Btn, Modal, SectionHead, CategoryBadge, fmtRelative, TxLink } from "../components/shared";
 import { ConnectButton } from "../components/ConnectButton";
 import { buildTree } from "../lib/merkle";
 import type { ReportCategory } from "@shieldpass/shared/enums";
@@ -16,11 +16,12 @@ export default function CompanyAdmin() {
   const { address } = useAccount();
   const ensNode = companyEns ? namehash(companyEns) : undefined;
 
-  const { data: admin } = useReadContract({
+  const { data: admin, isLoading: adminLoading, error: adminError } = useReadContract({
     address: SEPOLIA_ADDRESSES.CompanyRegistry,
     abi: CompanyRegistryAbi as any,
     functionName: "adminOf",
     args: ensNode ? [ensNode] : undefined,
+    query: { enabled: !!ensNode },
   });
 
   const isAdmin: boolean = !!(admin && address && (admin as string).toLowerCase() === address.toLowerCase());
@@ -43,8 +44,11 @@ export default function CompanyAdmin() {
             <div className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3 mb-3">Admin Console · {companyEns}</div>
             <h1 className="font-serif-disp text-[56px] md:text-[72px] leading-[0.95] text-paper">{companyEns?.split(".")[0]}</h1>
             <div className="mt-3 font-mono text-[11px] text-paper3">
-              admin: <span className="text-paper2">{admin ? String(admin) : "—"}</span>
+              admin: <span className="text-paper2">{adminLoading ? "loading…" : admin ? String(admin) : "—"}</span>
             </div>
+            {adminError && (
+              <div className="mt-1 font-mono text-[10px] text-alert">rpc error: {adminError.message.slice(0, 120)}</div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <ConnectButton />
@@ -58,9 +62,15 @@ export default function CompanyAdmin() {
           Connect a wallet to manage this organization.
         </div>
       )}
-      {address && !isAdmin && (
-        <div className="max-w-[1240px] mx-auto px-6 lg:px-10 py-16 font-mono text-[11px] text-alert uppercase tracking-[0.18em]">
-          This wallet is not the admin for {companyEns}.
+      {address && !adminLoading && !isAdmin && (
+        <div className="max-w-[1240px] mx-auto px-6 lg:px-10 py-16 space-y-2">
+          <div className="font-mono text-[11px] text-alert uppercase tracking-[0.18em]">
+            This wallet is not the admin for {companyEns}.
+          </div>
+          <div className="font-mono text-[10px] text-paper3">
+            connected: {address}<br />
+            on-chain admin: {admin ? String(admin) : "not registered"}
+          </div>
         </div>
       )}
 
@@ -181,8 +191,8 @@ function RotateModal({ open, onClose, companyEns, ensNode }: { open: boolean; on
           </Btn>
         </div>
 
-        {rotateTx && <div className="font-mono text-[11px] text-verify">rotate tx: {rotateTx}</div>}
-        {textTx && <div className="font-mono text-[11px] text-verify">setText tx: {textTx}</div>}
+        {rotateTx && <div className="font-mono text-[11px] text-verify">rotate tx: <TxLink hash={rotateTx} /></div>}
+        {textTx && <div className="font-mono text-[11px] text-verify">setText tx: <TxLink hash={textTx} /></div>}
       </div>
     </Modal>
   );

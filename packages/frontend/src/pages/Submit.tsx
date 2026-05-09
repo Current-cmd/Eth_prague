@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { useNavigate } from "react-router-dom";
 import type { Hex } from "viem";
 import { ReportCategory } from "@shieldpass/shared/enums";
 import { SEPOLIA_ADDRESSES } from "@shieldpass/shared/chain";
 import { ReportRegistryAbi } from "@shieldpass/shared/abis";
 import { ConnectButton } from "../components/ConnectButton";
 import { BadgePicker } from "../components/BadgePicker";
-import { AnonMark, Btn } from "../components/shared";
+import { AnonMark, Btn, TxLink } from "../components/shared";
 import { sanitizeImage } from "../lib/sanitize/exif";
 import { sanitizePdf } from "../lib/sanitize/pdf";
 import { ALL_CATEGORIES, CATEGORY_META } from "../lib/categoryMeta";
@@ -499,14 +499,12 @@ function ProofGrid({ active }: { active: boolean }) {
 }
 
 function Step5({ state }: { state: SubmitFlowState }) {
-  const [confirmed, setConfirmed] = useState(false);
-  const navigate = useNavigate();
-  const { writeContract, data: txHash, isPending: writing, error: writeErr } = useWriteContract();
-  const { isLoading: confirming, isSuccess: confirmed_, data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
+  const [checkboxOk, setCheckboxOk] = useState(false);
+  const [mainTxHash, setMainTxHash] = useState<`0x${string}` | undefined>();
 
-  useEffect(() => {
-    if (confirmed_ && state.reportHash) navigate(`/reports/${state.reportHash}`);
-  }, [confirmed_, state.reportHash, navigate]);
+  const { writeContractAsync, isPending: writing, error: writeErr } = useWriteContract();
+  const { isLoading: confirming, isSuccess: mainConfirmed, data: receipt } =
+    useWaitForTransactionReceipt({ hash: mainTxHash });
 
   if (!state.proofReceipt || !state.company || !state.reportHash || !state.pseudonymNode || !state.category) {
     return <div className="font-mono text-[11px] text-alert">Missing earlier-step outputs.</div>;
@@ -515,23 +513,34 @@ function Step5({ state }: { state: SubmitFlowState }) {
   const enumIndex = Object.values(ReportCategory).indexOf(state.category);
   const j = state.proofReceipt.journal;
 
-  const submit = () => writeContract({
-    address: SEPOLIA_ADDRESSES.ReportRegistry,
-    abi: ReportRegistryAbi as any,
-    functionName: "submitReport",
-    args: [
-      state.proofReceipt!.seal,
-      j.root,
-      j.reportHash,
-      j.nullifier,
-      BigInt(j.periodId),
-      j.ensNode,
-      enumIndex,
-      state.pseudonymNode!,
-      state.payloadCid!,
-    ],
-    gas: 800000n, // override estimation — dev-mode seal causes estimateGas to revert
-  });
+  const submit = async () => {
+    try {
+      const hash = await writeContractAsync({
+        address: SEPOLIA_ADDRESSES.ReportRegistry,
+        abi: ReportRegistryAbi as any,
+        functionName: "submitReport",
+        args: [
+          state.proofReceipt!.seal,
+          j.root,
+          j.reportHash,
+          j.nullifier,
+          BigInt(j.periodId),
+          j.ensNode,
+          enumIndex,
+          state.pseudonymNode!,
+          state.payloadCid!,
+        ],
+        gas: 800000n, // dev-mode seal causes estimateGas to revert
+      });
+      setMainTxHash(hash);
+    } catch {
+      // writeErr is surfaced via the hook
+    }
+  };
+
+  const busy = writing || confirming;
+
+  const btnLabel = writing ? "Confirm in wallet…" : confirming ? "Waiting for tx…" : "Submit Report ⤤";
 
   return (
     <div>
@@ -547,27 +556,54 @@ function Step5({ state }: { state: SubmitFlowState }) {
         <Row label="Period ID">{String(j.periodId)}</Row>
       </div>
 
-      <label className="mt-6 flex items-start gap-3 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={confirmed}
-          onChange={(e) => setConfirmed(e.target.checked)}
-          className="mt-1 w-4 h-4 border border-rule2"
-          style={{ borderRadius: 0 }}
-        />
-        <span className="text-[13px] text-paper2 max-w-[60ch] leading-snug">
-          I understand this disclosure publishes on-chain and cannot be retracted.
-        </span>
-      </label>
+      {!mainConfirmed && (
+        <>
+          <label className="mt-6 flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={checkboxOk}
+              onChange={(e) => setCheckboxOk(e.target.checked)}
+              className="mt-1 w-4 h-4 border border-rule2"
+              style={{ borderRadius: 0 }}
+            />
+            <span className="text-[13px] text-paper2 max-w-[60ch] leading-snug">
+              I understand this disclosure publishes on-chain and cannot be retracted.
+            </span>
+          </label>
 
-      <div className="mt-6 flex justify-end">
-        <Btn kind="primary" size="lg" disabled={!confirmed || writing || confirming} onClick={submit}>
-          {writing ? "Confirm in wallet…" : confirming ? "Waiting for tx…" : "Submit Report ⤤"}
-        </Btn>
-      </div>
+          <div className="mt-6 flex justify-end">
+            <Btn kind="primary" size="lg" disabled={!checkboxOk || busy} onClick={submit}>
+              {btnLabel}
+            </Btn>
+          </div>
+
+          {/* Show tx link as soon as wallet signs — before confirmation */}
+          {mainTxHash && !mainConfirmed && (
+            <div className="mt-4 font-mono text-[10.5px] text-paper3">
+              tx submitted: <TxLink hash={mainTxHash} />
+            </div>
+          )}
+        </>
+      )}
 
       {writeErr && <div className="mt-4 font-mono text-[11px] text-alert">{writeErr.message}</div>}
-      {receipt && <div className="mt-4 font-mono text-[11px] text-verify">tx: {receipt.transactionHash}</div>}
+
+      {mainConfirmed && receipt && (
+        <div className="mt-6 space-y-4">
+          <div className="p-5 border border-verify bg-verify/5 font-mono text-[11px] text-verify">
+            ✓ Report submitted on-chain
+          </div>
+          <div className="font-mono text-[10.5px] text-paper3">
+            tx: <TxLink hash={receipt.transactionHash} />
+          </div>
+          <Link
+            to={`/reports/${state.reportHash}`}
+            className="block text-center w-full border border-amber text-amber font-mono text-[11px] uppercase tracking-[0.18em] py-3 hover:bg-amber/10 transition"
+          >
+            View your report →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

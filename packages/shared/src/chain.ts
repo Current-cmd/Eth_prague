@@ -6,6 +6,7 @@ export const SEPOLIA_ADDRESSES = {
   ShieldPassResolver: process.env.SHIELDPASS_RESOLVER as `0x${string}`,
   Risc0Verifier: process.env.RISC0_VERIFIER as `0x${string}`,
   BoundlessMarket: process.env.BOUNDLESS_MARKET as `0x${string}`,
+  ShieldPassOnboarding: "0x3582317121dc826bA8A728F90E4748f4C99956af" as `0x${string}`,
 } as const;
 
 export const SEPOLIA_CONFIG = {

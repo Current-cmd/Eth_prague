@@ -1,4 +1,4 @@
-import { createPublicClient, http, keccak256 as keccak256Viem, toBytes } from "viem";
+import { createPublicClient, http, namehash } from "viem";
 import { sepolia } from "viem/chains";
 import { SEPOLIA_CONFIG } from "@shieldpass/shared/chain";
 
@@ -30,8 +30,8 @@ const PUBLIC_RESOLVER_ABI = [
   },
 ] as const;
 
-// 30s LRU cache
-const cache = new Map<string, { value: any; expires: number }>();
+// 30s TTL cache (plain Map; entries expire on next read after TTL)
+const cache = new Map<string, { value: unknown; expires: number }>();
 
 function withCache<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const cached = cache.get(key);
@@ -39,7 +39,7 @@ function withCache<T>(key: string, fn: () => Promise<T>): Promise<T> {
     return Promise.resolve(cached.value as T);
   }
   return fn().then((value) => {
-    cache.set(key, { value, expires: Date.now() + 30000 });
+    cache.set(key, { value, expires: Date.now() + 30_000 });
     return value;
   });
 }
@@ -60,6 +60,7 @@ export async function getResolver(node: `0x${string}`): Promise<`0x${string}` | 
   });
 }
 
+/** Read a text record for a directly-registered node (company-level records). */
 export async function getText(
   node: `0x${string}`,
   key: string
@@ -82,28 +83,21 @@ export async function getText(
   });
 }
 
-// ENS namehash per ENSIP-1
-export function namehash(name: string): `0x${string}` {
-  if (name === "") {
-    return "0x0000000000000000000000000000000000000000000000000000000000000000";
-  }
-
-  const labels = name.split(".");
-  let node: Uint8Array = new Uint8Array(32);
-
-  for (const label of labels.reverse()) {
-    const labelBytes = toBytes(label);
-    const labelHash = keccak256Viem(labelBytes);
-    const combined = new Uint8Array(64);
-    combined.set(node);
-    combined.set(toBytes(labelHash), 32);
-    node = toBytes(keccak256Viem(combined));
-  }
-
-  return `0x${Buffer.from(node).toString("hex")}` as `0x${string}`;
+/**
+ * Read a text record for any ENS name, including wildcard subnames.
+ * Uses viem's universal resolver which handles the ENSIP-10 fallback automatically,
+ * so this works for both direct nodes and *.workers.<company>.shieldpass-demo.eth subnames.
+ */
+export async function getEnsText(name: string, key: string): Promise<string | null> {
+  return withCache(`enstext:${name}:${key}`, async () => {
+    try {
+      return (await client.getEnsText({ name, key })) ?? null;
+    } catch {
+      return null;
+    }
+  });
 }
 
-// Convenience: compute namehash from ENS name
-export function ensNodeFromName(ensName: string): `0x${string}` {
-  return namehash(ensName);
-}
+// Use viem's canonical namehash (ENSIP-1 compliant).
+export { namehash };
+export const ensNodeFromName = namehash;

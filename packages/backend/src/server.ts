@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import { startIndexer } from "./services/indexer.js";
 import { companiesRoute } from "./routes/companies.js";
 import { ipfsRoute } from "./routes/ipfs.js";
@@ -7,6 +8,7 @@ import { proofsRoute } from "./routes/proofs.js";
 import { reportsRoute } from "./routes/reports.js";
 import { contextPackRoute, pseudonymsRoute } from "./routes/contextPack.js";
 import { investigateRoute } from "./routes/investigate.js";
+import { otpRoute } from "./routes/otp.js";
 
 const app = Fastify({
   logger: { level: process.env.LOG_LEVEL ?? "info" },
@@ -15,6 +17,7 @@ const app = Fastify({
 await app.register(cors, {
   origin: process.env.CORS_ORIGIN ?? "*",
 });
+await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } }); // 20 MB
 
 // Health check
 app.get("/v1/healthz", async () => ({ ok: true }));
@@ -27,6 +30,7 @@ await app.register(reportsRoute, { prefix: "/v1" });
 await app.register(contextPackRoute, { prefix: "/v1" });
 await app.register(pseudonymsRoute, { prefix: "/v1" });
 await app.register(investigateRoute, { prefix: "/v1" });
+await app.register(otpRoute, { prefix: "/v1" });
 
 // Start indexer
 await startIndexer().catch((err) => {

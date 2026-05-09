@@ -52,6 +52,21 @@ export function Hash({ value, label, full = false, className = '' }: HashProps) 
   )
 }
 
+// ── Etherscan tx link ───────────────────────────────────────────────────────
+
+export function TxLink({ hash, className = '' }: { hash: string; className?: string }) {
+  return (
+    <a
+      href={`https://sepolia.etherscan.io/tx/${hash}`}
+      target="_blank"
+      rel="noreferrer"
+      className={`font-mono text-[10.5px] text-paper2 underline hover:text-paper break-all ${className}`}
+    >
+      {truncHash(hash, 8, 6)} ↗
+    </a>
+  )
+}
+
 // ── Buttons ────────────────────────────────────────────────────────────────
 
 type BtnKind = 'primary' | 'danger' | 'ghost' | 'quiet' | 'solid'
