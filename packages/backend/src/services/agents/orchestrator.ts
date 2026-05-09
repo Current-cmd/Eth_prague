@@ -1,17 +1,15 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { runStructuredCompletion, type LlmTool } from "./llmClient.js";
 import type {
   WhistleblowerReport,
   OrchestratorPlan,
   LogEvent,
 } from "./types.js";
 
-const MODEL = "claude-sonnet-4-6";
-
-const PLAN_TOOL: Anthropic.Tool = {
+const PLAN_TOOL: LlmTool = {
   name: "submit_investigation_plan",
   description:
     "Submit a structured investigation plan derived from the whistleblower report.",
-  input_schema: {
+  parameters: {
     type: "object",
     required: ["company", "claims", "dispatch"],
     properties: {
@@ -26,8 +24,8 @@ const PLAN_TOOL: Anthropic.Tool = {
           type: "object",
           required: ["id", "text"],
           properties: {
-            id: { type: "string", description: "Short camelCase identifier, e.g. claim_1" },
-            text: { type: "string", description: "Precise claim that can be checked against public data" },
+            id: { type: "string", description: "Short identifier, e.g. claim_1" },
+            text: { type: "string", description: "Precise claim checkable against public data" },
           },
         },
       },
@@ -46,7 +44,8 @@ const PLAN_TOOL: Anthropic.Tool = {
             },
             query: {
               type: "string",
-              description: "Search query (for news) or the specific ESG metric / page to check (for web)",
+              description:
+                "Search query (for news) or specific ESG metric / page to check (for web)",
             },
           },
         },
@@ -55,17 +54,25 @@ const PLAN_TOOL: Anthropic.Tool = {
   },
 };
 
+const SYSTEM = `You are an ESG investigation orchestrator. Analyze whistleblower reports about corporate misconduct and produce a structured investigation plan.
+
+Extract the target company name (infer from context if not stated), then identify 2–4 specific, verifiable claims about ESG failures — greenwashing, inflated metrics, labour violations, misleading disclosures, etc. Each claim must be something that public data (news archives, company websites, regulatory filings) could confirm or contradict.
+
+For each claim, choose the most appropriate scraper:
+- news: best for finding third-party coverage and analyst commentary
+- web: best for checking what the company itself publicly claims
+
+Be precise. Vague claims cannot be verified.`;
+
 type Emit = (event: Omit<LogEvent, "timestamp">) => void;
 
 export async function runOrchestrator(
   report: WhistleblowerReport,
   emit: Emit
 ): Promise<OrchestratorPlan> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
   emit({ type: "agent", message: "Orchestrator analyzing report…", agent: "orchestrator" });
 
-  const userMessage = [
+  const user = [
     "Whistleblower Report:",
     report.text,
     report.company ? `\nAlleged company: ${report.company}` : "",
@@ -74,29 +81,14 @@ export async function runOrchestrator(
     .filter(Boolean)
     .join("\n");
 
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 1024,
-    system: `You are an ESG investigation orchestrator. Analyze whistleblower reports about corporate misconduct and produce a structured investigation plan.
-
-Extract the target company name (infer from context if not stated), then identify 2–4 specific, verifiable claims about ESG failures — greenwashing, inflated metrics, labour violations, misleading disclosures, etc. Each claim must be something that public data (news archives, company websites, regulatory filings) could confirm or contradict.
-
-For each claim, choose the most appropriate scraper:
-- news: best for finding third-party coverage and analyst commentary
-- web: best for checking what the company itself publicly claims
-
-Be precise. Vague claims cannot be verified.`,
-    tools: [PLAN_TOOL],
-    tool_choice: { type: "any" },
-    messages: [{ role: "user", content: userMessage }],
+  const raw = await runStructuredCompletion({
+    system: SYSTEM,
+    user,
+    tool: PLAN_TOOL,
+    maxTokens: 1024,
   });
 
-  const toolUse = response.content.find((c) => c.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") {
-    throw new Error("Orchestrator did not return a structured plan");
-  }
-
-  const plan = toolUse.input as OrchestratorPlan;
+  const plan = raw as unknown as OrchestratorPlan;
 
   emit({ type: "info", message: `Identified target: ${plan.company}` });
   emit({
