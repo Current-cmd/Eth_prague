@@ -166,6 +166,47 @@ cd packages/contracts && forge test
 
 ---
 
+## ESG Whistleblower Investigation Tool
+
+Navigate to `/investigate` in the frontend. Submit a free-text report about alleged corporate ESG misconduct. An orchestrated AI agent pipeline verifies claims against public data:
+
+1. **Orchestrator** — extracts the target company and 2–4 verifiable claims from the report
+2. **Scraper agents** — mock news and web agents (swap points for Apify actors)
+3. **Synthesis agent** — produces per-claim verdicts (`supported` / `contradicted` / `insufficient_evidence`) and an overall credibility score
+
+The sidebar shows a live "Investigation Pool" balance ($50 starting, $0.05 per agent call) — staged for x402 payments.
+
+### LLM provider selection
+
+Set `LLM_PROVIDER` in `packages/backend/.env`:
+
+| Value | Provider | Key var |
+|---|---|---|
+| `glm` (default) | GLM-4.6 via [z.ai](https://z.ai) | `GLM_API_KEY` |
+| `claude` | Claude Sonnet 4.6 via Anthropic | `ANTHROPIC_API_KEY` |
+
+```bash
+# Use GLM (default)
+LLM_PROVIDER=glm
+GLM_API_KEY=<your-z.ai-key>
+
+# Or switch to Claude
+LLM_PROVIDER=claude
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+GLM's `tool_choice` only supports `"auto"`. If the model returns prose instead of a tool call, the client retries once with a stronger instruction, then attempts to `JSON.parse` the message content. A warning is logged when either fallback path runs.
+
+### Swap points for production
+
+| Component | File | What to replace |
+|---|---|---|
+| News scraper | `packages/backend/src/services/agents/newsAgent.ts` | `fetchNewsArticles()` body → Apify actor call |
+| Web scraper | `packages/backend/src/services/agents/webAgent.ts` | `fetchWebPages()` body → Apify website crawler |
+| Payment layer | `packages/backend/src/services/payments/mockPayment.ts` | `payForAgentRun()` body → x402 on-chain payment |
+
+---
+
 ## Backend API
 
 Base URL: `http://localhost:8787/v1`
@@ -178,6 +219,10 @@ Base URL: `http://localhost:8787/v1`
 | `GET` | `/proofs/:id` | Poll proof job status |
 | `POST` | `/ipfs/pin` | Pin a file to IPFS via Pinata |
 | `POST` | `/ipfs/pin-json` | Pin a JSON object to IPFS |
+| `POST` | `/investigate` | Start an ESG investigation, returns `{id}` |
+| `GET` | `/investigate/:id` | Poll investigation state (log, plan, dossier, pool) |
+| `GET` | `/investigate/pool` | Current pool balance and transaction log |
+| `POST` | `/investigate/pool/reset` | Reset pool to $50 for demo restarts |
 
 ---
 
