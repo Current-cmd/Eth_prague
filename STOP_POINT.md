@@ -184,10 +184,51 @@ All 5 steps now reach completion:
 - Steps 1–4: ✅ fully working
 - Step 5 (on-chain): tx is sent and MetaMask accepts it; **dev-mode seal is rejected by the on-chain RISC0 verifier** (expected — for real on-chain verification, remove `RISC0_DEV_MODE` and use a full STARK or route through Boundless Market for Groth16 wrapping)
 
-### ENS credential writing — implemented (2026-05-09)
-After `submitReport` confirms, Step 5 now calls `setSubText` twice (nullifier then reportHash) using `writeContractAsync`. Both are best-effort: if the connected wallet is not the company admin the calls revert, but the user is shown a warning and navigation still proceeds.
+---
 
-**Requires redeploy of `ShieldPassResolver`** — the contract logic changed (see Session 3 changes below).
+## Session 3 changes (2026-05-09 — ZK-Email onboarding + admin fix)
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `packages/contracts/src/ShieldPassOnboarding.sol` | New contract — removed OZ ReentrancyGuard dep (not installed); fixed re-entrancy bug (nullifier now marked before external `verify` call, not after) |
+| `packages/contracts/script/DeployOnboarding.s.sol` | Cleaned up — removed unused `IShieldPassResolver` import; simplified `MockZKEmailVerifier` |
+| `packages/frontend/src/pages/Onboarding.tsx` | Full rewrite — real contract address, correct `domainHash` (`keccak256` of email domain), deterministic badge derivation from seeded tree slots 2–7, downloadable badge JSON on success |
+| `packages/shared/src/abis/ShieldPassOnboarding.json` | New — ABI extracted from forge output |
+| `packages/shared/src/abis/index.ts` | Added `ShieldPassOnboardingAbi` export |
+| `packages/shared/src/chain.ts` | Added `ShieldPassOnboarding: "0x3582317121dc826bA8A728F90E4748f4C99956af"` |
+| `packages/frontend/src/pages/CompanyAdmin.tsx` | Added `isLoading` + `error` to `useReadContract`; "not admin" guard now waits for load; shows connected vs on-chain admin for debugging |
+| `packages/frontend/vite.config.ts` | **Critical fix** — switched from `defineConfig({})` to `defineConfig(({ mode }) => { const env = loadEnv(...) })` so `.env.local` values are actually available when building the `process.env` shim |
+
+### Bugs fixed
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| Admin console: "not registered" / "not admin" for correct wallet | `vite.config.ts` used `process.env.VITE_*` which is `undefined` in Node context — Vite only injects `.env.local` into `import.meta.env`, not `process.env`; the `JSON.stringify` call dropped all undefined keys → `SEPOLIA_ADDRESSES.*` were all `undefined` in browser → `useReadContract` silently skipped | Switched to `loadEnv(mode, cwd, '')` which properly reads `.env.local` into a plain object |
+| "Not admin" flash on page load | `!isAdmin` was true while `useReadContract` was still in-flight (admin = undefined) | Added `adminLoading` guard: only show error when `!adminLoading && !isAdmin` |
+| Re-entrancy in `ShieldPassOnboarding.claimBadge` | `usedEmailNullifiers[nullifier] = true` was set AFTER `verifier.verify()` external call | Moved nullifier marking BEFORE the external call (CEI pattern) |
+| Onboarding tx sent to zero address | `onboardingAddress` hardcoded to `0x000...` | Uses `SEPOLIA_ADDRESSES.ShieldPassOnboarding` (deployed address) |
+
+### Deployed contracts (Session 3)
+
+| Contract | Address |
+|---|---|
+| `ShieldPassOnboarding` | `0x3582317121dc826bA8A728F90E4748f4C99956af` |
+| `MockZKEmailVerifier` | `0xB77690f1A9FADBf4e8c16A83e522ce16060EACbf` |
+
+### Onboarding user flow (now working)
+1. Worker goes to `/onboarding`
+2. Enters company ENS + work email → clicks "Generate ZK-Email Proof"
+3. 3s simulated proof generation → MetaMask tx → `claimBadge(mockProof, domainHash, nullifier)` on Sepolia
+4. On confirmation: badge deterministically derived (slot 2–7 of seeded tree, pseudonym from email hash)
+5. "Download badge JSON →" button — worker saves file, uploads in Submit Step 1
+
+### Known open items
+- Admin console requires Vite dev server **restart** after `vite.config.ts` change (hot-reload doesn't apply to config)
+- Submit Step 5 has no "View your report →" link after tx confirms (P0 gap)
+- Feed has no explainer strip for judges (P1 gap)
+- Admin "Rotate badge tree" modal has no badge export for workers (P1 gap)
 
 ---
 
