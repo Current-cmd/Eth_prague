@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { CategoryBadge, Hash, fmtDateTime } from "../components/shared";
+import { CategoryBadge, Hash, TxLink, fmtDateTime } from "../components/shared";
 import { EnsName } from "../components/EnsName";
 import { ProofStatus } from "../components/ProofStatus";
 import { CATEGORY_FIELDS } from "../lib/categoryFields";
@@ -88,7 +88,7 @@ export default function ReportDetail() {
           <div>
             <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-paper3 mb-2">Provenance</div>
             <div className="space-y-2.5">
-              <KV k="Tx hash"      v={<Hash value={r.txHash} />} />
+              <KV k="Tx hash"      v={<TxLink hash={r.txHash} />} />
               <KV k="Block"        v={<span className="font-mono text-[11px] text-paper2 tnum">#{r.blockNumber}</span>} />
               <KV k="Report hash"  v={<Hash value={r.reportHash} />} />
               <KV k="Nullifier"    v={<Hash value={r.nullifier} />} />

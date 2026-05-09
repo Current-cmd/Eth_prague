@@ -6,7 +6,7 @@ import { namehash, type Hex } from "viem";
 import { api } from "../lib/api";
 import { SEPOLIA_ADDRESSES, SEPOLIA_CONFIG } from "@shieldpass/shared/chain";
 import { CompanyRegistryAbi, BadgeTreeManagerAbi, ShieldPassResolverAbi } from "@shieldpass/shared/abis";
-import { Btn, Modal, SectionHead, CategoryBadge, fmtRelative } from "../components/shared";
+import { Btn, Modal, SectionHead, CategoryBadge, fmtRelative, TxLink } from "../components/shared";
 import { ConnectButton } from "../components/ConnectButton";
 import { buildTree } from "../lib/merkle";
 import type { ReportCategory } from "@shieldpass/shared/enums";
@@ -191,8 +191,8 @@ function RotateModal({ open, onClose, companyEns, ensNode }: { open: boolean; on
           </Btn>
         </div>
 
-        {rotateTx && <div className="font-mono text-[11px] text-verify">rotate tx: {rotateTx}</div>}
-        {textTx && <div className="font-mono text-[11px] text-verify">setText tx: {textTx}</div>}
+        {rotateTx && <div className="font-mono text-[11px] text-verify">rotate tx: <TxLink hash={rotateTx} /></div>}
+        {textTx && <div className="font-mono text-[11px] text-verify">setText tx: <TxLink hash={textTx} /></div>}
       </div>
     </Modal>
   );

@@ -7,7 +7,7 @@ import { SEPOLIA_ADDRESSES } from "@shieldpass/shared/chain";
 import { ReportRegistryAbi } from "@shieldpass/shared/abis";
 import { ConnectButton } from "../components/ConnectButton";
 import { BadgePicker } from "../components/BadgePicker";
-import { AnonMark, Btn } from "../components/shared";
+import { AnonMark, Btn, TxLink } from "../components/shared";
 import { sanitizeImage } from "../lib/sanitize/exif";
 import { sanitizePdf } from "../lib/sanitize/pdf";
 import { ALL_CATEGORIES, CATEGORY_META } from "../lib/categoryMeta";
@@ -576,6 +576,13 @@ function Step5({ state }: { state: SubmitFlowState }) {
               {btnLabel}
             </Btn>
           </div>
+
+          {/* Show tx link as soon as wallet signs — before confirmation */}
+          {mainTxHash && !mainConfirmed && (
+            <div className="mt-4 font-mono text-[10.5px] text-paper3">
+              tx submitted: <TxLink hash={mainTxHash} />
+            </div>
+          )}
         </>
       )}
 
@@ -586,16 +593,8 @@ function Step5({ state }: { state: SubmitFlowState }) {
           <div className="p-5 border border-verify bg-verify/5 font-mono text-[11px] text-verify">
             ✓ Report submitted on-chain
           </div>
-          <div className="font-mono text-[10.5px] text-paper3 break-all">
-            tx:{" "}
-            <a
-              href={`https://sepolia.etherscan.io/tx/${receipt.transactionHash}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-paper2 underline"
-            >
-              {receipt.transactionHash}
-            </a>
+          <div className="font-mono text-[10.5px] text-paper3">
+            tx: <TxLink hash={receipt.transactionHash} />
           </div>
           <Link
             to={`/reports/${state.reportHash}`}
