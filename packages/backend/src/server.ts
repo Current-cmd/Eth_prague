@@ -4,6 +4,7 @@ import { startIndexer } from "./services/indexer.js";
 import { companiesRoute } from "./routes/companies.js";
 import { ipfsRoute } from "./routes/ipfs.js";
 import { proofsRoute } from "./routes/proofs.js";
+import { kmsRoute } from "./routes/kms.js";
 import { reportsRoute } from "./routes/reports.js";
 import { contextPackRoute, pseudonymsRoute } from "./routes/contextPack.js";
 
@@ -22,6 +23,7 @@ app.get("/v1/healthz", async () => ({ ok: true }));
 await app.register(companiesRoute, { prefix: "/v1" });
 await app.register(ipfsRoute, { prefix: "/v1" });
 await app.register(proofsRoute, { prefix: "/v1" });
+await app.register(kmsRoute, { prefix: "/v1" });
 await app.register(reportsRoute, { prefix: "/v1" });
 await app.register(contextPackRoute, { prefix: "/v1" });
 await app.register(pseudonymsRoute, { prefix: "/v1" });
