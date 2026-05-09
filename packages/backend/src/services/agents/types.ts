@@ -61,7 +61,12 @@ export interface ScraperAgent {
 
 // ── Synthesis output ───────────────────────────────────────────────────────
 
-export type VerdictLabel = "contradicted" | "supported" | "insufficient_evidence";
+export type VerdictLabel =
+  | "contradicted_by_public_record"  // Company publicly claims the opposite — smoking gun
+  | "corroborated_by_public_record"  // Independent sources report something similar
+  | "consistent_with_public_record"  // Aligns with known patterns/broader concerns
+  | "unverified_but_plausible"       // No public info either way — normal for whistleblowing
+  | "directly_refuted";              // Specific public evidence disproves the claim (rare)
 
 export interface Verdict {
   claimId: string;

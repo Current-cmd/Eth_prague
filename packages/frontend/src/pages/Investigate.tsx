@@ -12,7 +12,12 @@ type InvestigationStatus =
   | "synthesizing"
   | "complete"
   | "error";
-type VerdictLabel = "contradicted" | "supported" | "insufficient_evidence";
+type VerdictLabel =
+  | "contradicted_by_public_record"
+  | "corroborated_by_public_record"
+  | "consistent_with_public_record"
+  | "unverified_but_plausible"
+  | "directly_refuted";
 
 interface LogEvent {
   timestamp: string;
@@ -90,16 +95,30 @@ async function resetPool(): Promise<{ balance: number; transactions: PoolTransac
 
 const DONE_STATUSES: InvestigationStatus[] = ["complete", "error"];
 
-function verdictTone(v: VerdictLabel): "verify" | "alert" | "amber" {
-  if (v === "supported") return "verify";
-  if (v === "contradicted") return "alert";
-  return "amber";
+type BadgeTone = "verify" | "alert" | "amber" | "neutral" | "paper";
+
+const VERDICT_TONE: Record<VerdictLabel, BadgeTone> = {
+  contradicted_by_public_record: "amber",   // purple — smoking gun, strongest emphasis
+  corroborated_by_public_record: "verify",  // green — independently confirmed
+  consistent_with_public_record: "paper",   // muted white — circumstantial alignment
+  unverified_but_plausible:      "neutral", // gray — expected baseline, not bad
+  directly_refuted:              "alert",   // light blue — used as error tone in this codebase
+};
+
+const VERDICT_LABEL: Record<VerdictLabel, string> = {
+  contradicted_by_public_record: "Contradicted by Public Record",
+  corroborated_by_public_record: "Corroborated by Public Record",
+  consistent_with_public_record: "Consistent with Public Record",
+  unverified_but_plausible:      "Unverified but Plausible",
+  directly_refuted:              "Directly Refuted",
+};
+
+function verdictTone(v: VerdictLabel): BadgeTone {
+  return VERDICT_TONE[v] ?? "neutral";
 }
 
 function verdictLabel(v: VerdictLabel): string {
-  if (v === "supported") return "Supported";
-  if (v === "contradicted") return "Contradicted";
-  return "Insufficient Evidence";
+  return VERDICT_LABEL[v] ?? v;
 }
 
 function scoreColor(score: number): string {
