@@ -7,6 +7,18 @@ import { randomUUID } from "node:crypto";
 type ReqBody = components["schemas"]["ProofRequest"];
 type Job = components["schemas"]["ProofJob"];
 
+const JobSchema = {
+  type: "object",
+  required: ["requestId", "status", "expiresAt"],
+  properties: {
+    requestId: { type: "string" },
+    status: { type: "string", enum: ["queued", "fulfilled", "failed", "expired"] },
+    expiresAt: { type: "integer" },
+    receipt: { type: "object" },
+    error: { type: "string" },
+  },
+} as const;
+
 export const proofsRoute: FastifyPluginAsync = async (app) => {
   app.post<{ Body: ReqBody; Reply: Job }>(
     "/proofs",
@@ -28,7 +40,7 @@ export const proofsRoute: FastifyPluginAsync = async (app) => {
           },
         },
         response: {
-          202: Job,
+          202: JobSchema,
         },
       },
     },
@@ -74,7 +86,7 @@ export const proofsRoute: FastifyPluginAsync = async (app) => {
           },
         },
         response: {
-          200: Job,
+          200: JobSchema,
           404: {
             type: "object",
             required: ["code", "message"],
