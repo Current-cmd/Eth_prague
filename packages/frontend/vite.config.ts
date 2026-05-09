@@ -8,6 +8,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    server: {
+      proxy: {
+        '/v1': 'http://localhost:8787',
+      },
+    },
     define: {
       // Shim process.env so shared/chain.ts (written for Node) works in the browser.
       'process.env': JSON.stringify({

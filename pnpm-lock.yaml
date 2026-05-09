@@ -29,6 +29,9 @@ importers:
       '@shieldpass/shared':
         specifier: workspace:*
         version: link:../shared
+      '@spacecomputer-io/orbitport-sdk-ts':
+        specifier: ^0.2.1
+        version: 0.2.1(typescript@5.9.3)
       better-sqlite3:
         specifier: ^11.8
         version: 11.10.0
@@ -57,6 +60,9 @@ importers:
 
   packages/contracts:
     dependencies:
+      '@openzeppelin/contracts':
+        specifier: ^5.6.1
+        version: 5.6.1
       circomlibjs:
         specifier: ^0.1.7
         version: 0.1.7(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -956,6 +962,9 @@ packages:
   '@open-draft/until@2.1.0':
     resolution: {integrity: sha512-U69T3ItWHvLwGg5eJ0n3I62nWuE6ilHlmz7zM0npLBRvPRd7e6NYmg54vvRtP5mZG7kZqZCFVdsTWo7BPtBujg==}
 
+  '@openzeppelin/contracts@5.6.1':
+    resolution: {integrity: sha512-Ly6SlsVJ3mj+b18W3R8gNufB7dTICT105fJhodGAGgyC2oqnBAhqSiNDJ8V8DLY05cCz81GLI0CU5vNYA1EC/w==}
+
   '@paulmillr/qr@0.2.1':
     resolution: {integrity: sha512-IHnV6A+zxU7XwmKFinmYjUcwlyK9+xkG3/s9KcQhI9BjQKycrJ1JRO+FbNYPwZiPKW3je/DR0k7w8/gLa5eaxQ==}
     deprecated: 'The package is now available as "qr": npm install qr'
@@ -1546,6 +1555,12 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  '@spacecomputer-io/orbitport-sdk-ts@0.2.1':
+    resolution: {integrity: sha512-RWVbznZwseapRtexjmsjT64uNscf/AiSjQAZe9PBZbcfcmyaThk2XFur3AOnyD87GKujKmm1sxCFScAfFM8u4A==}
+    engines: {node: '>=22.0.0'}
+    peerDependencies:
+      typescript: '>=5.0.0'
 
   '@tanstack/query-core@5.100.9':
     resolution: {integrity: sha512-SJSFw1S8+kQ0+knv/XGfrbocWoAlT7vDKsSImtLx3ZPQmEcR46hkDjLSvynSy25N8Ms4tIEini1FuBd5k7IscQ==}
@@ -5400,6 +5415,8 @@ snapshots:
 
   '@open-draft/until@2.1.0': {}
 
+  '@openzeppelin/contracts@5.6.1': {}
+
   '@paulmillr/qr@0.2.1': {}
 
   '@pdf-lib/standard-fonts@1.0.0':
@@ -6276,6 +6293,11 @@ snapshots:
       typescript: 5.9.3
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
+
+  '@spacecomputer-io/orbitport-sdk-ts@0.2.1(typescript@5.9.3)':
+    dependencies:
+      tslib: 2.8.1
+      typescript: 5.9.3
 
   '@tanstack/query-core@5.100.9': {}
 

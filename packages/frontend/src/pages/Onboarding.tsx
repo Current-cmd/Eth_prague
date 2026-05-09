@@ -97,6 +97,24 @@ export default function Onboarding() {
     const bundle = buildBadgeBundle(email, companyEns);
     setBadge(bundle);
     setStep("done");
+
+    // Fire-and-forget: register the badge credential with the backend KMS so it
+    // can be recovered server-side if the user loses their downloaded JSON file.
+    // This does NOT block the UI — errors are swallowed silently.
+    if (bundle) {
+      fetch("/v1/badges/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          badge: bundle.badge,
+          pseudonymNode: bundle.pseudonymNode,
+          company: bundle.company,
+          leafIndex: bundle.leafIndex,
+        }),
+      }).catch((err) => {
+        console.error("[ShieldPass] Badge KMS registration failed (non-fatal):", err);
+      });
+    }
   }
 
   return (

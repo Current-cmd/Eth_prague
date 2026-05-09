@@ -6,6 +6,7 @@ import { ipfsRoute } from "./routes/ipfs.js";
 import { proofsRoute } from "./routes/proofs.js";
 import { reportsRoute } from "./routes/reports.js";
 import { contextPackRoute, pseudonymsRoute } from "./routes/contextPack.js";
+import { badgesRoute } from "./routes/badges.js";
 
 const app = Fastify({
   logger: { level: process.env.LOG_LEVEL ?? "info" },
@@ -25,6 +26,15 @@ await app.register(proofsRoute, { prefix: "/v1" });
 await app.register(reportsRoute, { prefix: "/v1" });
 await app.register(contextPackRoute, { prefix: "/v1" });
 await app.register(pseudonymsRoute, { prefix: "/v1" });
+await app.register(badgesRoute, { prefix: "/v1" });
+
+// Warn (but do not crash) if Space KMS credentials are absent
+if (!process.env.ORBITPORT_CLIENT_ID || !process.env.ORBITPORT_CLIENT_SECRET) {
+  console.warn(
+    "[ShieldPass] WARNING: ORBITPORT_CLIENT_ID or ORBITPORT_CLIENT_SECRET is not set. " +
+      "POST /v1/badges/register will return 502 until credentials are provided."
+  );
+}
 
 // Start indexer
 await startIndexer().catch((err) => {
