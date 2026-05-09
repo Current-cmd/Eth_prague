@@ -6,6 +6,7 @@ import { ipfsRoute } from "./routes/ipfs.js";
 import { proofsRoute } from "./routes/proofs.js";
 import { reportsRoute } from "./routes/reports.js";
 import { contextPackRoute, pseudonymsRoute } from "./routes/contextPack.js";
+import { investigateRoute } from "./routes/investigate.js";
 
 const app = Fastify({
   logger: { level: process.env.LOG_LEVEL ?? "info" },
@@ -25,6 +26,7 @@ await app.register(proofsRoute, { prefix: "/v1" });
 await app.register(reportsRoute, { prefix: "/v1" });
 await app.register(contextPackRoute, { prefix: "/v1" });
 await app.register(pseudonymsRoute, { prefix: "/v1" });
+await app.register(investigateRoute, { prefix: "/v1" });
 
 // Start indexer
 await startIndexer().catch((err) => {
