@@ -1,6 +1,8 @@
 import { ApifyClient } from "apify-client";
 import type { ScraperAgent, ScraperInput, ScraperResult, NewsArticle } from "./types.js";
 
+// Actor minimum is 100; we trim client-side to keep synthesis input small.
+const APIFY_MIN_ITEMS = 100;
 const MAX_ITEMS = 5;
 
 // Raw shape returned by easyapi/google-news-scraper
@@ -42,7 +44,7 @@ async function fetchNewsArticles(input: ScraperInput): Promise<NewsArticle[]> {
 
     const run = await client.actor("easyapi/google-news-scraper").call({
       query,
-      maxItems: MAX_ITEMS,
+      maxItems: APIFY_MIN_ITEMS,
       gl: "us",
       hl: "en",
     });
@@ -50,7 +52,7 @@ async function fetchNewsArticles(input: ScraperInput): Promise<NewsArticle[]> {
     const { items } = await client.dataset(run.defaultDatasetId).listItems();
     const articles = (items as ApifyNewsItem[]).slice(0, MAX_ITEMS).map(mapToNewsArticle);
 
-    console.info(`[newsAgent] received ${articles.length} article(s) for "${query}"`);
+    console.info(`[newsAgent] received ${items.length} results, using top ${articles.length} for "${query}"`);
     return articles;
   } catch (err) {
     console.error(`[newsAgent] Apify call failed for "${query}":`, err);
