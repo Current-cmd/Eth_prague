@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import type { Hex } from "viem";
 import { DEMO_WORKERS, leavesFor, type DemoWorker } from "../lib/demoWorkers";
 import { Btn } from "./shared";
@@ -88,7 +89,7 @@ export function BadgePicker({ onPick }: BadgePickerProps) {
           </div>
         )
       ) : (
-        <div>
+        <div className="space-y-4">
           <input
             ref={fileInputRef}
             type="file"
@@ -97,6 +98,12 @@ export function BadgePicker({ onPick }: BadgePickerProps) {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }}
           />
           <Btn kind="ghost" size="md" onClick={() => fileInputRef.current?.click()}>Choose badge JSON…</Btn>
+          <div className="font-mono text-[10.5px] text-paper3">
+            No badge yet?{" "}
+            <Link to="/onboarding" className="text-amber underline hover:text-amber/80">
+              Get one via Worker Onboarding →
+            </Link>
+          </div>
         </div>
       )}
 

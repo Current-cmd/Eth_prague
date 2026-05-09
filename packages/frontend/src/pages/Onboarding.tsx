@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { namehash, keccak256, toHex, toBytes } from "viem";
 import { Btn, SectionHead } from "../components/shared";
@@ -161,6 +162,13 @@ export default function Onboarding() {
             <div className="font-mono text-[10.5px] text-paper3 text-center">
               Save this file. Upload it in Step 1 of "Submit a Disclosure" to report anonymously.
             </div>
+
+            <Link
+              to="/submit"
+              className="block text-center w-full border border-amber text-amber font-mono text-[11px] uppercase tracking-[0.18em] py-3 hover:bg-amber/10 transition"
+            >
+              Submit a disclosure →
+            </Link>
 
             {txHash && (
               <div className="font-mono text-[10px] text-paper3 break-all">
