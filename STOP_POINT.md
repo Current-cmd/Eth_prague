@@ -18,6 +18,8 @@
 | BadgeTreeManager | `0xD23B95dee2753C56b4293a982546ed00c7ad6294` |
 | ReportRegistry | `0x493511b88Ffeee437Fc9e97C110Aa7eBb32CB5F1` |
 | ShieldPassResolver | `0x112F41Dd39c7913BBD88d7E6E194F77b70e4616c` |
+| ShieldPassOnboarding | `0x3582317121dc826bA8A728F90E4748f4C99956af` |
+| MockZKEmailVerifier | `0xB77690f1A9FADBf4e8c16A83e522ce16060EACbf` |
 | RISC0 Verifier (pre-deployed) | `0x925d8331ddc0a1F0d96E68CF073DFE1d92b69187` |
 | Boundless Market (pre-deployed) | `0xc211b581cb62e3a6d396a592bab34979e1bbba7d` |
 
