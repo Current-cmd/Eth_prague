@@ -146,8 +146,8 @@ export default function Feed() {
                   <div className="mt-auto pt-3 border-t border-rule/60 flex items-center justify-between font-mono text-[10px] text-paper3">
                     <span className="tnum">{r.reportHash.slice(0, 10)}…</span>
                     <span className="flex items-center gap-1.5">
-                      <span className="text-verify">✓</span>
-                      <span>verified · {fmtRelative(new Date(r.submittedAt * 1000).toISOString())}</span>
+                      <span className="text-paper3">·</span>
+                      <span>{fmtRelative(new Date(r.submittedAt * 1000).toISOString())}</span>
                     </span>
                   </div>
                 </Link>

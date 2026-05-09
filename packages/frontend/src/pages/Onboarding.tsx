@@ -1,19 +1,14 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { namehash, keccak256, toHex, toBytes } from "viem";
+import { namehash, keccak256, toBytes } from "viem";
 import { Btn, SectionHead } from "../components/shared";
 import { ConnectButton } from "../components/ConnectButton";
 import { SEPOLIA_ADDRESSES } from "@shieldpass/shared/chain";
 import { ShieldPassOnboardingAbi } from "@shieldpass/shared/abis";
 import { leavesFor } from "../lib/demoWorkers";
 
-// Derive a stable badge slot (indices 2–7) from the email nullifier,
-// avoiding slots 0 and 1 which are reserved for hardcoded demo workers.
-function deriveSlot(nullifier: `0x${string}`, total: number): number {
-  const available = Math.max(1, total - 2); // slots 2..total-1
-  const idx = Number(BigInt(nullifier) % BigInt(available));
-  return 2 + idx;
-}
+type Stage = "idle" | "sending" | "awaiting_otp" | "verifying" | "proving" | "tx" | "done";
 
 interface BadgeBundle {
   badge: `0x${string}`;
@@ -34,73 +29,110 @@ function downloadJson(obj: unknown, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function deriveSlot(nullifier: `0x${string}`, total: number): number {
+  const available = Math.max(1, total - 2);
+  const idx = Number(BigInt(nullifier) % BigInt(available));
+  return 2 + idx;
+}
+
+function buildBadgeBundle(email: string, company: string, nullifier: `0x${string}`): BadgeBundle | null {
+  const leaves = leavesFor(company);
+  if (!leaves || leaves.length < 3) return null;
+  const slotIndex = deriveSlot(nullifier, leaves.length);
+  const badgeValue = leaves[slotIndex] as `0x${string}`;
+  const pseudonym = "worker-" + nullifier.slice(2, 6);
+  const ensNode = namehash(company) as `0x${string}`;
+  const pseudonymNode = namehash(`${pseudonym}.workers.${company}`) as `0x${string}`;
+  return { badge: badgeValue, pseudonym, company, ensNode, pseudonymNode, leafIndex: slotIndex };
+}
+
 export default function Onboarding() {
   const { address } = useAccount();
   const [companyEns, setCompanyEns] = useState("acme.shieldpass-demo.eth");
   const [email, setEmail] = useState("");
-  const [step, setStep] = useState<"idle" | "proving" | "tx" | "done">("idle");
+  const [otp, setOtp] = useState("");
+  const [stage, setStage] = useState<Stage>("idle");
   const [badge, setBadge] = useState<BadgeBundle | null>(null);
-  const [txError, setTxError] = useState<string | null>(null);
+  const [verifiedNullifier, setVerifiedNullifier] = useState<`0x${string}` | null>(null);
+  const [verifiedDomainHash, setVerifiedDomainHash] = useState<`0x${string}` | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const { writeContract, data: txHash, isPending: walletPending } = useWriteContract();
   const { isSuccess: confirmed, isLoading: confirming } = useWaitForTransactionReceipt({ hash: txHash });
 
-  // Derive the full badge bundle from email + company
-  function buildBadgeBundle(emailAddr: string, company: string): BadgeBundle | null {
-    const leaves = leavesFor(company);
-    if (!leaves || leaves.length < 3) return null;
+  const API = import.meta.env.VITE_API_BASE as string;
 
-    const nullifier = keccak256(toHex(emailAddr)) as `0x${string}`;
-    const slotIndex = deriveSlot(nullifier, leaves.length);
-    const badgeValue = leaves[slotIndex] as `0x${string}`;
-    const pseudonym = "worker-" + nullifier.slice(2, 6);
-    const ensNode = namehash(company) as `0x${string}`;
-    const pseudonymNode = namehash(`${pseudonym}.workers.${company}`) as `0x${string}`;
-
-    return { badge: badgeValue, pseudonym, company, ensNode, pseudonymNode, leafIndex: slotIndex };
-  }
-
-  const handleProve = async () => {
-    if (!email || !companyEns) return;
-    setTxError(null);
-    setStep("proving");
-
-    // Simulate the 3s "generating ZK-SNARK in browser" UX beat
-    await new Promise((r) => setTimeout(r, 3000));
-
-    setStep("tx");
-
-    // domainHash = keccak256 of the email's domain (e.g. "acme.com")
-    const emailDomain = email.split("@")[1] ?? companyEns;
-    const domainHash = keccak256(toBytes(emailDomain)) as `0x${string}`;
-    const nullifier = keccak256(toHex(email)) as `0x${string}`;
-    const mockProof = toHex("zk-email-demo-proof") as `0x${string}`;
-
-    writeContract(
-      {
-        address: SEPOLIA_ADDRESSES.ShieldPassOnboarding,
-        abi: ShieldPassOnboardingAbi as any,
-        functionName: "claimBadge",
-        args: [mockProof, domainHash, nullifier],
-      },
-      {
-        onError: (e) => {
-          setTxError(e.message.slice(0, 200));
-          setStep("idle");
-        },
-      }
-    );
+  const sendOtp = async () => {
+    if (!email.includes("@") || !companyEns) return;
+    setError(null);
+    setStage("sending");
+    try {
+      const res = await fetch(`${API}/auth/otp/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, ensName: companyEns }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setStage("awaiting_otp");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setStage("idle");
+    }
   };
 
-  // Move to done once the receipt lands
-  if (confirmed && step === "tx" && !badge) {
-    const bundle = buildBadgeBundle(email, companyEns);
-    setBadge(bundle);
-    setStep("done");
+  const verifyOtp = async () => {
+    if (!otp || otp.length !== 6) return;
+    setError(null);
+    setStage("verifying");
+    try {
+      const res = await fetch(`${API}/auth/otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp, ensName: companyEns }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(body.error ?? "verification failed");
+      }
+      const { domainHash, nullifier } = await res.json() as {
+        domainHash: `0x${string}`;
+        nullifier: `0x${string}`;
+      };
 
-    // Fire-and-forget: register the badge credential with the backend KMS so it
-    // can be recovered server-side if the user loses their downloaded JSON file.
-    // This does NOT block the UI — errors are swallowed silently.
+      setVerifiedDomainHash(domainHash);
+      setVerifiedNullifier(nullifier);
+      setStage("proving");
+
+      // Fake ZK proof generation (UX beat — MockZKEmailVerifier accepts anything)
+      await new Promise((r) => setTimeout(r, 3000));
+      setStage("tx");
+
+      writeContract(
+        {
+          address: SEPOLIA_ADDRESSES.ShieldPassOnboarding,
+          abi: ShieldPassOnboardingAbi as any,
+          functionName: "claimBadge",
+          // MockZKEmailVerifier accepts any proof bytes
+          args: ["0x", domainHash, nullifier],
+        },
+        {
+          onError: (e) => {
+            setError(e.message.slice(0, 200));
+            setStage("awaiting_otp");
+          },
+        }
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setStage("awaiting_otp");
+    }
+  };
+
+  if (confirmed && stage === "tx" && !badge && verifiedNullifier) {
+    const bundle = buildBadgeBundle(email, companyEns, verifiedNullifier);
+    setBadge(bundle);
+    setStage("done");
+
     if (bundle) {
       fetch("/v1/badges/register", {
         method: "POST",
@@ -117,16 +149,21 @@ export default function Onboarding() {
     }
   }
 
+  const busy = stage === "sending" || stage === "verifying" || walletPending || confirming;
+
   return (
     <div className="page-enter">
-      {/* Header */}
       <div className="border-b border-rule">
         <div className="max-w-[1240px] mx-auto px-6 lg:px-10 py-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <div>
-            <div className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-verify mb-3">ZK-Email · Privacy by Design</div>
-            <h1 className="font-serif-disp text-[56px] md:text-[72px] leading-[0.95] text-paper">Worker Onboarding</h1>
+            <div className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-verify mb-3">
+              Email Verification · Privacy by Design
+            </div>
+            <h1 className="font-serif-disp text-[56px] md:text-[72px] leading-[0.95] text-paper">
+              Worker Onboarding
+            </h1>
             <p className="mt-4 font-mono text-[11px] text-paper3 max-w-[520px] leading-relaxed">
-              Prove you own a corporate email. Your email address never touches a server — only a ZK proof goes on-chain. You receive an anonymous badge credential you can use to submit reports.
+              Prove you own a corporate email address. A one-time code is sent to your inbox — only the nullifier derived from your email goes on-chain. You receive an anonymous badge to submit reports.
             </p>
           </div>
           <ConnectButton />
@@ -136,10 +173,13 @@ export default function Onboarding() {
       <div className="max-w-[700px] mx-auto px-6 lg:px-10 py-16">
 
         {!address ? (
-          <div className="p-6 border border-alert/50 bg-alert/5 font-mono text-[11px] text-alert uppercase tracking-[0.18em]">
-            Connect your wallet to receive your badge.
+          <div className="space-y-4">
+            <div className="p-6 border border-alert/50 bg-alert/5 font-mono text-[11px] text-alert uppercase tracking-[0.18em]">
+              Connect your wallet to receive your badge.
+            </div>
+            <ConnectButton />
           </div>
-        ) : step === "done" && badge ? (
+        ) : stage === "done" && badge ? (
           /* ── Success state ── */
           <div className="space-y-6">
             <div className="p-6 border border-verify bg-verify/5">
@@ -164,7 +204,7 @@ export default function Onboarding() {
             </div>
 
             <div className="p-5 border border-rule2 bg-panel font-mono text-[11px] text-paper3 leading-relaxed">
-              Your email address was never sent anywhere. The ZK proof verified your DKIM signature locally, the nullifier prevents double-claiming, and the badge below is your membership credential in the company's anonymous whistleblower set.
+              Your email address was verified by OTP. Only the keccak256 nullifier derived from it is recorded on-chain — the email itself never left your device.
             </div>
 
             <Btn
@@ -180,29 +220,42 @@ export default function Onboarding() {
               Save this file. Upload it in Step 1 of "Submit a Disclosure" to report anonymously.
             </div>
 
+            <Link
+              to="/submit"
+              className="block text-center w-full border border-amber text-amber font-mono text-[11px] uppercase tracking-[0.18em] py-3 hover:bg-amber/10 transition"
+            >
+              Submit a disclosure →
+            </Link>
+
             {txHash && (
               <div className="font-mono text-[10px] text-paper3 break-all">
-                tx: <a
+                tx:{" "}
+                <a
                   href={`https://sepolia.etherscan.io/tx/${txHash}`}
                   target="_blank"
                   rel="noreferrer"
                   className="text-paper2 underline"
-                >{txHash}</a>
+                >
+                  {txHash}
+                </a>
               </div>
             )}
           </div>
         ) : (
-          /* ── Input / proof / tx states ── */
+          /* ── Input / OTP / tx states ── */
           <div className="space-y-6">
             <SectionHead kicker="01 — Verify Employment" title="Claim your anonymous credential" tight />
 
+            {/* Step 1: email + company */}
             <div>
-              <label className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3 block mb-2">Company ENS</label>
+              <label className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3 block mb-2">
+                Company ENS
+              </label>
               <input
                 type="text"
                 value={companyEns}
                 onChange={(e) => setCompanyEns(e.target.value)}
-                disabled={step !== "idle"}
+                disabled={stage !== "idle"}
                 placeholder="acme.shieldpass-demo.eth"
                 className="w-full bg-ink border border-rule2 text-paper text-[12px] p-3 font-mono focus:outline-none focus:border-paper3 disabled:opacity-50"
                 style={{ borderRadius: 0 }}
@@ -210,31 +263,86 @@ export default function Onboarding() {
             </div>
 
             <div>
-              <label className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3 block mb-2">Work Email</label>
+              <label className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3 block mb-2">
+                Work Email
+              </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={step !== "idle"}
+                disabled={stage !== "idle"}
                 placeholder="you@acme.com"
                 className="w-full bg-ink border border-rule2 text-paper text-[12px] p-3 font-mono focus:outline-none focus:border-paper3 disabled:opacity-50"
                 style={{ borderRadius: 0 }}
               />
             </div>
 
-            {step === "idle" && (
+            {stage === "idle" && (
               <Btn
                 kind="primary"
                 size="lg"
                 className="w-full"
-                onClick={handleProve}
-                disabled={!email || !companyEns || !email.includes("@")}
+                onClick={sendOtp}
+                disabled={!email.includes("@") || !companyEns}
               >
-                Generate ZK-Email Proof
+                Send verification code
               </Btn>
             )}
 
-            {step === "proving" && (
+            {stage === "sending" && (
+              <div className="p-4 border border-rule2 bg-panel font-mono text-[11px] text-paper3 animate-pulse text-center uppercase tracking-[0.18em]">
+                Sending code to {email}…
+              </div>
+            )}
+
+            {/* Step 2: OTP entry */}
+            {(stage === "awaiting_otp" || stage === "verifying") && (
+              <div className="space-y-4">
+                <div className="p-4 border border-verify/40 bg-verify/5 font-mono text-[11px] text-verify">
+                  Code sent to <span className="text-paper">{email}</span>. Check your inbox.
+                </div>
+
+                <div>
+                  <label className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3 block mb-2">
+                    6-digit code
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    disabled={stage === "verifying"}
+                    placeholder="123456"
+                    className="w-full bg-ink border border-rule2 text-paper text-[20px] p-3 font-mono tracking-[0.4em] text-center focus:outline-none focus:border-paper3 disabled:opacity-50"
+                    style={{ borderRadius: 0 }}
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <Btn
+                    kind="primary"
+                    size="lg"
+                    className="flex-1"
+                    onClick={verifyOtp}
+                    disabled={otp.length !== 6 || stage === "verifying"}
+                  >
+                    {stage === "verifying" ? "Verifying…" : "Verify code →"}
+                  </Btn>
+                  <Btn
+                    kind="ghost"
+                    size="lg"
+                    onClick={() => { setStage("idle"); setOtp(""); setError(null); }}
+                    disabled={stage === "verifying"}
+                  >
+                    Resend
+                  </Btn>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: fake ZK proving */}
+            {stage === "proving" && (
               <div className="p-6 border border-rule2 text-center bg-panel space-y-3">
                 <div className="font-mono text-[11px] text-paper3 uppercase tracking-[0.18em] animate-pulse">
                   Generating ZK-SNARK locally…
@@ -246,7 +354,8 @@ export default function Onboarding() {
               </div>
             )}
 
-            {step === "tx" && (
+            {/* Step 4: tx pending */}
+            {stage === "tx" && (
               <div className="p-6 border border-amber/30 text-center bg-amber/5 space-y-2">
                 <div className="font-mono text-[11px] text-amber uppercase tracking-[0.18em]">
                   {walletPending
@@ -257,7 +366,12 @@ export default function Onboarding() {
                 </div>
                 {txHash && (
                   <div className="font-mono text-[10px] text-paper3 break-all">
-                    <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noreferrer" className="underline">
+                    <a
+                      href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
                       {txHash.slice(0, 20)}…
                     </a>
                   </div>
@@ -265,9 +379,9 @@ export default function Onboarding() {
               </div>
             )}
 
-            {txError && (
+            {error && (
               <div className="p-4 border border-alert/40 bg-alert/5 font-mono text-[11px] text-alert">
-                {txError}
+                {error}
               </div>
             )}
           </div>
