@@ -38,6 +38,7 @@ export default function Feed() {
       });
       return data?.items ?? [];
     },
+    refetchInterval: 8000,
   });
 
   const companies = companiesQ.data ?? [];

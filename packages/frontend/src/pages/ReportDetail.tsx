@@ -47,6 +47,7 @@ export default function ReportDetail() {
       return data;
     },
     enabled: !!reportHash,
+    refetchInterval: (query) => ((query.state.data as any)?.dossier ? false : 5000),
   });
 
   if (q.isLoading) {
