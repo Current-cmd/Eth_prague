@@ -1,10 +1,11 @@
 import { ApifyClient } from "apify-client";
+import { payAndCallActor } from "../payments/x402Client.js";
 import type { ScraperAgent, ScraperInput, ScraperResult, NewsArticle } from "./types.js";
 
 const MAX_ITEMS = 5;
 
-// Raw shape from apify/google-search-scraper dataset items.
-// Each item represents one query page and contains an organicResults array.
+// Raw shape returned by apify/google-search-scraper dataset items.
+// Each item represents one results page with an organicResults array.
 interface OrganicResult {
   title?: string;
   url?: string;
@@ -31,14 +32,49 @@ function mapToNewsArticle(r: OrganicResult): NewsArticle {
     source:  r.url ? domainOf(r.url) : "(unknown source)",
     url:     r.url     ?? "",
     snippet: r.snippet ?? "",
-    date:    "",   // apify/google-search-scraper doesn't return a date field
+    date:    "",   // apify/google-search-scraper does not return a date field
   };
 }
 
-// ── Real Apify call ────────────────────────────────────────────────────────
-// Actor: apify/google-search-scraper (Free-tier compatible)
-// Output: one dataset item per query page; organic results nested in organicResults[].
-async function fetchNewsArticles(input: ScraperInput): Promise<NewsArticle[]> {
+function extractArticles(items: unknown[]): NewsArticle[] {
+  const organic: OrganicResult[] = (items as ApifySearchPage[]).flatMap(
+    (page) => page.organicResults ?? []
+  );
+  const articles = organic.slice(0, MAX_ITEMS).map(mapToNewsArticle);
+  if (items.length > 0) {
+    const first = items[0] as ApifySearchPage;
+    console.debug(`[newsAgent] raw item keys: ${Object.keys(first).join(", ")}`);
+    console.debug(`[newsAgent] organicResults count: ${first.organicResults?.length ?? 0}`);
+  }
+  return articles;
+}
+
+// ── x402 path ──────────────────────────────────────────────────────────────
+// Used when X402_ENABLED=true (default). Throws loudly on any failure —
+// no silent fallback. The caller's try/catch handles the error.
+
+async function fetchViaX402(
+  input: ScraperInput
+): Promise<{ articles: NewsArticle[]; paymentInfo: { amountUsd: string; signed: boolean } }> {
+  const { query } = input;
+  console.info(`[newsAgent] querying via x402: "${query}"`);
+
+  const { items, paymentInfo } = await payAndCallActor("apify/google-search-scraper", {
+    queries:          query,
+    resultsPerPage:   10,
+    maxPagesPerQuery: 1,
+    countryCode:      "us",
+  });
+
+  const articles = extractArticles(items);
+  console.info(`[newsAgent] x402 returned ${articles.length} article(s) for "${query}"`);
+  return { articles, paymentInfo };
+}
+
+// ── Apify token path ───────────────────────────────────────────────────────
+// Used only when X402_ENABLED=false (manual demo-day escape hatch).
+
+async function fetchViaToken(input: ScraperInput): Promise<NewsArticle[]> {
   const token = process.env.APIFY_TOKEN;
   if (!token) {
     console.error("[newsAgent] APIFY_TOKEN is not set — returning empty results");
@@ -46,47 +82,36 @@ async function fetchNewsArticles(input: ScraperInput): Promise<NewsArticle[]> {
   }
 
   const { query } = input;
-  console.info(`[newsAgent] querying Apify: "${query}"`);
+  console.info(`[newsAgent] querying Apify (token path, x402 disabled): "${query}"`);
 
-  try {
-    const client = new ApifyClient({ token });
+  const client = new ApifyClient({ token });
+  const run = await client.actor("apify/google-search-scraper").call({
+    queries:          query,
+    resultsPerPage:   10,
+    maxPagesPerQuery: 1,
+    countryCode:      "us",
+  });
 
-    const run = await client.actor("apify/google-search-scraper").call({
-      queries:          query,
-      resultsPerPage:   10,   // one page of 10 is enough; we trim to MAX_ITEMS below
-      maxPagesPerQuery: 1,
-      countryCode:      "us",
-    });
-
-    const { items } = await client.dataset(run.defaultDatasetId).listItems();
-
-    // Log raw shape of first item to aid debugging during integration
-    if (items.length > 0) {
-      const firstPage = items[0] as ApifySearchPage;
-      console.debug(`[newsAgent] raw item keys: ${Object.keys(firstPage).join(", ")}`);
-      console.debug(`[newsAgent] organicResults count: ${firstPage.organicResults?.length ?? 0}`);
-    }
-
-    // Flatten organic results across all pages (we only request one, but be safe)
-    const organic: OrganicResult[] = (items as ApifySearchPage[]).flatMap(
-      (page) => page.organicResults ?? []
-    );
-
-    const articles = organic.slice(0, MAX_ITEMS).map(mapToNewsArticle);
-
-    console.info(
-      `[newsAgent] received ${organic.length} results, using top ${articles.length} for "${query}"`
-    );
-    return articles;
-  } catch (err) {
-    console.error(`[newsAgent] Apify call failed for "${query}":`, err);
-    return [];
-  }
+  const { items } = await client.dataset(run.defaultDatasetId).listItems();
+  const articles = extractArticles(items as unknown[]);
+  console.info(`[newsAgent] token path returned ${articles.length} article(s) for "${query}"`);
+  return articles;
 }
+
+// ── Agent export ───────────────────────────────────────────────────────────
 
 export const newsAgent: ScraperAgent = {
   async run(input: ScraperInput): Promise<ScraperResult> {
-    const articles = await fetchNewsArticles(input);
-    return { agentId: "news", input, articles };
+    const x402Enabled = process.env.X402_ENABLED !== "false";
+
+    if (x402Enabled) {
+      // x402 path — loud failure on error, no silent fallback
+      const { articles, paymentInfo } = await fetchViaX402(input);
+      return { agentId: "news", input, articles, paymentInfo };
+    } else {
+      // Token fallback — only when manually set X402_ENABLED=false
+      const articles = await fetchViaToken(input);
+      return { agentId: "news", input, articles };
+    }
   },
 };
