@@ -1,8 +1,11 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { components } from "@shieldpass/shared/api";
-import { dbHelpers } from "../services/db.js";
+import { db, dbHelpers } from "../services/db.js";
 
-type Report = components["schemas"]["Report"];
+type Report = components["schemas"]["Report"] & {
+  credibilityScore?: number | null;
+  dossier?: unknown | null;
+};
 
 export const reportsRoute: FastifyPluginAsync = async (app) => {
   app.get<{
@@ -47,34 +50,61 @@ export const reportsRoute: FastifyPluginAsync = async (app) => {
       };
       const categoryNum = category !== undefined ? categoryMap[category] : undefined;
 
+      // The query string carries an ENS name (e.g. "acme.shieldpass-demo.eth")
+      // but the reports table is keyed on ens_node (bytes32 hex). Resolve here.
+      let companyEnsNode: string | undefined;
+      if (company) {
+        const coRow = db.prepare("SELECT ens_node FROM companies WHERE ens_name = ?").get(company) as
+          | { ens_node: string }
+          | undefined;
+        if (!coRow) return { items: [], nextCursor: null };
+        companyEnsNode = coRow.ens_node;
+      }
+
       const result = dbHelpers.listReports({
-        company,
+        company: companyEnsNode,
         category: categoryNum,
         since,
         limit,
         cursor,
       });
 
-      const items: Report[] = result.items.map((row) => ({
-        reportHash: row.report_hash as `0x${string}`,
-        ensNode: row.ens_node as `0x${string}`,
-        nullifier: row.nullifier as `0x${string}`,
-        rootUsed: row.root_used as `0x${string}`,
-        cid: row.cid,
-        category: [
-          "Misconduct",
-          "SelectiveDisclosure",
-          "Misclassification",
-          "HollowPromise",
-          "InNameOnly",
-          "MisleadingPresentation",
-        ][row.category] as components["schemas"]["ReportCategory"],
-        submittedAt: row.submitted_at,
-        pseudonymNode: row.pseudonym_node as `0x${string}`,
-        txHash: row.tx_hash as `0x${string}`,
-        blockNumber: row.block_number,
-        contextPackCid: row.context_pack_cid ?? null,
-      }));
+      const CATEGORIES = ["Misconduct","SelectiveDisclosure","Misclassification","HollowPromise","InNameOnly","MisleadingPresentation"];
+
+      // Fetch credibility scores for all returned reports in one query
+      const invMap = new Map<string, number>();
+      if (result.items.length > 0) {
+        const placeholders = result.items.map(() => "?").join(",");
+        const hashes = result.items.map((r) => r.report_hash);
+        try {
+          const invRows = db.prepare(
+            `SELECT report_hash, credibility_score FROM investigation_results WHERE report_hash IN (${placeholders})`
+          ).all(...hashes) as { report_hash: string; credibility_score: number }[];
+          for (const row of invRows) invMap.set(row.report_hash, row.credibility_score);
+        } catch { /* table may not exist on old DB */ }
+      }
+
+      const items: Report[] = result.items.map((row) => {
+        let payload: components["schemas"]["ReportPayload"] | undefined;
+        if (row.payload_json) {
+          try { payload = JSON.parse(row.payload_json); } catch { /* ignore */ }
+        }
+        return {
+          reportHash: row.report_hash as `0x${string}`,
+          ensNode: row.ens_node as `0x${string}`,
+          nullifier: row.nullifier as `0x${string}`,
+          rootUsed: row.root_used as `0x${string}`,
+          cid: row.cid,
+          category: CATEGORIES[row.category] as components["schemas"]["ReportCategory"],
+          submittedAt: row.submitted_at,
+          pseudonymNode: row.pseudonym_node as `0x${string}`,
+          txHash: row.tx_hash as `0x${string}`,
+          blockNumber: row.block_number,
+          contextPackCid: row.context_pack_cid ?? null,
+          credibilityScore: invMap.has(row.report_hash) ? invMap.get(row.report_hash) : null,
+          payload,
+        };
+      });
 
       return {
         items,
@@ -109,25 +139,38 @@ export const reportsRoute: FastifyPluginAsync = async (app) => {
         });
       }
 
+      const DETAIL_CATEGORIES = ["Misconduct","SelectiveDisclosure","Misclassification","HollowPromise","InNameOnly","MisleadingPresentation"];
+
+      const invResult = dbHelpers.getInvestigationResult(req.params.reportHash);
+      let dossier: unknown = null;
+      let credibilityScore: number | null = null;
+      if (invResult) {
+        try {
+          dossier = JSON.parse(invResult.dossier_json);
+          credibilityScore = invResult.credibility_score;
+        } catch { /* ignore malformed JSON */ }
+      }
+
+      let payload: components["schemas"]["ReportPayload"] | undefined;
+      if (row.payload_json) {
+        try { payload = JSON.parse(row.payload_json); } catch { /* ignore */ }
+      }
+
       const report: Report = {
         reportHash: row.report_hash as `0x${string}`,
         ensNode: row.ens_node as `0x${string}`,
         nullifier: row.nullifier as `0x${string}`,
         rootUsed: row.root_used as `0x${string}`,
         cid: row.cid,
-        category: [
-          "Misconduct",
-          "SelectiveDisclosure",
-          "Misclassification",
-          "HollowPromise",
-          "InNameOnly",
-          "MisleadingPresentation",
-        ][row.category] as components["schemas"]["ReportCategory"],
+        category: DETAIL_CATEGORIES[row.category] as components["schemas"]["ReportCategory"],
         submittedAt: row.submitted_at,
         pseudonymNode: row.pseudonym_node as `0x${string}`,
         txHash: row.tx_hash as `0x${string}`,
         blockNumber: row.block_number,
         contextPackCid: row.context_pack_cid ?? null,
+        credibilityScore,
+        dossier,
+        payload,
       };
 
       return report;

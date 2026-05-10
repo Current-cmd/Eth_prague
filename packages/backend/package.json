@@ -3,19 +3,22 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --env-file=.env src/server.ts",
+    "dev": "tsx --env-file=.env --watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
     "@fastify/cors": "^10.0",
     "@fastify/multipart": "^10.0.0",
     "@pinata/sdk": "^2.1.0",
     "@shieldpass/shared": "workspace:*",
+    "apify-client": "^2.23.2",
     "better-sqlite3": "^11.8",
     "fastify": "^5.3",
     "nodemailer": "^8.0.7",
+    "openai": "^6.37.0",
     "viem": "^2.22"
   },
   "devDependencies": {

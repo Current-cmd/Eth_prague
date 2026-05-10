@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { sepolia } from "wagmi/chains";
 import { namehash, keccak256, toBytes } from "viem";
 import { Btn, SectionHead } from "../components/shared";
 import { ConnectButton } from "../components/ConnectButton";
@@ -8,7 +9,7 @@ import { SEPOLIA_ADDRESSES } from "@shieldpass/shared/chain";
 import { ShieldPassOnboardingAbi } from "@shieldpass/shared/abis";
 import { leavesFor } from "../lib/demoWorkers";
 
-type Stage = "idle" | "sending" | "awaiting_otp" | "verifying" | "proving" | "tx" | "done";
+type Stage = "idle" | "sending" | "awaiting_otp" | "verifying" | "proving" | "tx" | "tx_failed" | "done";
 
 interface BadgeBundle {
   badge: `0x${string}`;
@@ -60,7 +61,7 @@ export default function Onboarding() {
   const [error, setError] = useState<string | null>(null);
 
   const { writeContract, data: txHash, isPending: walletPending } = useWriteContract();
-  const { isSuccess: confirmed, isLoading: confirming } = useWaitForTransactionReceipt({ hash: txHash });
+  const { isSuccess: confirmed, isLoading: confirming, isError: txReverted } = useWaitForTransactionReceipt({ hash: txHash });
 
   const API = import.meta.env.VITE_API_BASE as string;
 
@@ -107,14 +108,32 @@ export default function Onboarding() {
 
       // Fake ZK proof generation (UX beat — MockZKEmailVerifier accepts anything)
       await new Promise((r) => setTimeout(r, 15000));
-      setStage("tx");
 
+      // Pre-check: if nullifier already on-chain, skip the tx and show badge directly
+      const alreadyUsed = await fetch(import.meta.env.VITE_SEPOLIA_RPC_URL as string, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0", method: "eth_call",
+          params: [{ to: SEPOLIA_ADDRESSES.ShieldPassOnboarding, data: "0xab04e561" + nullifier.slice(2) }, "latest"],
+          id: 1,
+        }),
+      }).then((r) => r.json()).then((d) => d.result === "0x0000000000000000000000000000000000000000000000000000000000000001").catch(() => false);
+
+      if (alreadyUsed) {
+        const bundle = buildBadgeBundle(email, companyEns, nullifier);
+        setBadge(bundle);
+        setStage("done");
+        return;
+      }
+
+      setStage("tx");
       writeContract(
         {
           address: SEPOLIA_ADDRESSES.ShieldPassOnboarding,
           abi: ShieldPassOnboardingAbi as any,
           functionName: "claimBadge",
-          // MockZKEmailVerifier accepts any proof bytes
+          chainId: sepolia.id,
           args: ["0x", domainHash, nullifier],
           gas: 300000n,
         },
@@ -131,11 +150,20 @@ export default function Onboarding() {
     }
   };
 
-  if (confirmed && stage === "tx" && !badge && verifiedNullifier) {
-    const bundle = buildBadgeBundle(email, companyEns, verifiedNullifier);
-    setBadge(bundle);
-    setStage("done");
-  }
+  useEffect(() => {
+    if (confirmed && stage === "tx" && !badge && verifiedNullifier) {
+      const bundle = buildBadgeBundle(email, companyEns, verifiedNullifier);
+      setBadge(bundle);
+      setStage("done");
+    }
+  }, [confirmed, stage, badge, verifiedNullifier]);
+
+  useEffect(() => {
+    if (txReverted && stage === "tx") {
+      setError("Transaction reverted. The badge for this email may already be claimed — try continuing anyway.");
+      setStage("tx_failed");
+    }
+  }, [txReverted, stage]);
 
   const busy = stage === "sending" || stage === "verifying" || walletPending || confirming;
 
@@ -365,6 +393,21 @@ export default function Onboarding() {
                   </div>
                 )}
               </div>
+            )}
+
+            {stage === "tx_failed" && verifiedNullifier && (
+              <Btn
+                kind="primary"
+                size="lg"
+                className="w-full"
+                onClick={() => {
+                  const bundle = buildBadgeBundle(email, companyEns, verifiedNullifier);
+                  setBadge(bundle);
+                  setStage("done");
+                }}
+              >
+                Retrieve existing badge →
+              </Btn>
             )}
 
             {error && (

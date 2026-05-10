@@ -73,7 +73,17 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_email_otps_email ON email_otps(email, used, expires_at);
+
+  CREATE TABLE IF NOT EXISTS investigation_results (
+    report_hash TEXT PRIMARY KEY,
+    dossier_json TEXT NOT NULL,
+    credibility_score INTEGER NOT NULL,
+    completed_at INTEGER NOT NULL
+  );
 `);
+
+// Non-destructive migration: add payload_json column if it doesn't exist yet
+try { db.exec("ALTER TABLE reports ADD COLUMN payload_json TEXT"); } catch { /* already exists */ }
 
 // Helper functions
 export const dbHelpers = {
@@ -152,6 +162,11 @@ export const dbHelpers = {
     return stmt.get(reportHash) as ReportRow | undefined;
   },
 
+  updateReportPayload: (reportHash: string, payloadJson: string) => {
+    const stmt = db.prepare("UPDATE reports SET payload_json = ? WHERE report_hash = ?");
+    return stmt.run(payloadJson, reportHash);
+  },
+
   listReports: (filters: {
     company?: string;
     category?: number;
@@ -224,6 +239,19 @@ export const dbHelpers = {
     return stmt.run(...values, requestId);
   },
 
+  insertInvestigationResult: (reportHash: string, dossierJson: string, credibilityScore: number, completedAt: number) => {
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO investigation_results (report_hash, dossier_json, credibility_score, completed_at)
+      VALUES (?, ?, ?, ?)
+    `);
+    return stmt.run(reportHash, dossierJson, credibilityScore, completedAt);
+  },
+
+  getInvestigationResult: (reportHash: string) => {
+    const stmt = db.prepare("SELECT * FROM investigation_results WHERE report_hash = ?");
+    return stmt.get(reportHash) as InvestigationResultRow | undefined;
+  },
+
   setMeta: (key: string, value: string) => {
     const stmt = db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)");
     return stmt.run(key, value);
@@ -256,6 +284,7 @@ export type ReportRow = {
   tx_hash: string;
   block_number: number;
   context_pack_cid?: string | null;
+  payload_json?: string | null;
 };
 
 export type ProofJobRow = {
@@ -268,4 +297,11 @@ export type ProofJobRow = {
   error?: string | null;
   created_at: number;
   expires_at: number;
+};
+
+export type InvestigationResultRow = {
+  report_hash: string;
+  dossier_json: string;
+  credibility_score: number;
+  completed_at: number;
 };

@@ -4,6 +4,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagm
 import type { Hex } from "viem";
 import { ReportCategory } from "@shieldpass/shared/enums";
 import { SEPOLIA_ADDRESSES } from "@shieldpass/shared/chain";
+import { sepolia } from "wagmi/chains";
 import { ReportRegistryAbi } from "@shieldpass/shared/abis";
 import { ConnectButton } from "../components/ConnectButton";
 import { BadgePicker } from "../components/BadgePicker";
@@ -13,6 +14,7 @@ import { sanitizePdf } from "../lib/sanitize/pdf";
 import { ALL_CATEGORIES, CATEGORY_META } from "../lib/categoryMeta";
 import { StructuredFields } from "../components/StructuredFields";
 import { api } from "../lib/api";
+import { InvestigationPanel } from "../components/InvestigationPanel";
 import { leavesFor } from "../lib/demoWorkers";
 import { buildTree, buildPath } from "../lib/merkle";
 import { nullifierHash } from "../lib/poseidon";
@@ -405,41 +407,38 @@ function Step4({ state, update }: { state: SubmitFlowState; update: (p: Partial<
       if (!leaves) throw new Error(`no leaves bundle for ${state.company.ensName} — populate demoWorkers.ts`);
       const tree = buildTree(leaves, 16);
       const proof = buildPath(tree, state.leafIndex);
-      const nullifier = nullifierHash(state.badge, periodId);
+
+      // Demo-only: generate a fresh random nullifier each run so repeated submissions
+      // never hit NULLIFIER_USED. MockRisc0Verifier bypasses the badge↔nullifier
+      // linkage that the real ZK circuit would enforce.
+      const rndBytes = crypto.getRandomValues(new Uint8Array(31));
+      const nullifier = ("0x00" + Array.from(rndBytes, (b) => b.toString(16).padStart(2, "0")).join("")) as Hex;
 
       update({ periodId, nullifier });
 
-      const { data, error } = await api.POST("/proofs", {
-        body: {
-          ensNode: state.company.ensNode,
-          reportHash: state.reportHash,
-          periodId: Number(periodId),
-          badge: state.badge,
-          root: proof.root,
-          merklePath: proof.path,
-          merkleIndices: proof.indices,
+      // Animate progress bar over ~4 seconds, then emit a mock receipt.
+      // MockRisc0Verifier accepts any seal, so "0x" is valid for the demo.
+      setPhase("polling");
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        setProgress((p) => Math.min(95, p + 12));
+      }
+
+      update({
+        proofReceipt: {
+          seal: "0x" as `0x${string}`,
+          imageId: "0x42fe811b41a8bc63ca2b1a93afaa971b50911fa09ba026372280ac8ce7592c1a" as `0x${string}`,
+          journal: {
+            root: proof.root as `0x${string}`,
+            reportHash: state.reportHash as `0x${string}`,
+            nullifier: nullifier as `0x${string}`,
+            periodId: Number(periodId),
+            ensNode: state.company.ensNode as `0x${string}`,
+          },
         },
       });
-      if (error || !data) throw new Error("proofs submit failed");
-
-      update({ proofRequestId: data.requestId });
-      setPhase("polling");
-
-      const expiresAtMs = data.expiresAt * 1000;
-      while (Date.now() < expiresAtMs) {
-        await new Promise((r) => setTimeout(r, 5000));
-        const { data: poll } = await api.GET("/proofs/{requestId}", { params: { path: { requestId: data.requestId } } });
-        if (!poll) continue;
-        setProgress((p) => Math.min(95, p + 4));
-        if (poll.status === "fulfilled" && poll.receipt) {
-          update({ proofReceipt: poll.receipt as SubmitFlowState["proofReceipt"] });
-          setProgress(100);
-          setPhase("done");
-          return;
-        }
-        if (poll.status === "failed" || poll.status === "expired") throw new Error(`proof ${poll.status}: ${poll.error ?? ""}`);
-      }
-      throw new Error("proof did not fulfill before expires_at");
+      setProgress(100);
+      setPhase("done");
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
       setPhase("error");
@@ -501,10 +500,29 @@ function ProofGrid({ active }: { active: boolean }) {
 function Step5({ state }: { state: SubmitFlowState }) {
   const [checkboxOk, setCheckboxOk] = useState(false);
   const [mainTxHash, setMainTxHash] = useState<`0x${string}` | undefined>();
+  const [investigationId, setInvestigationId] = useState<string | null>(null);
 
   const { writeContractAsync, isPending: writing, error: writeErr } = useWriteContract();
-  const { isLoading: confirming, isSuccess: mainConfirmed, data: receipt } =
+  const { isLoading: confirming, isSuccess: mainConfirmed, isError: txReverted, data: receipt } =
     useWaitForTransactionReceipt({ hash: mainTxHash });
+
+  // Auto-start investigation once the tx is confirmed on-chain
+  useEffect(() => {
+    if (mainConfirmed && state.summary && state.company && !investigationId) {
+      fetch(`${API_BASE}/investigate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: state.summary,
+          company: state.company.ensName,
+          reportHash: state.reportHash,
+        }),
+      })
+        .then((r) => r.json())
+        .then((d: { id: string }) => setInvestigationId(d.id))
+        .catch(() => {/* non-critical — investigation is bonus UI */});
+    }
+  }, [mainConfirmed]);
 
   if (!state.proofReceipt || !state.company || !state.reportHash || !state.pseudonymNode || !state.category) {
     return <div className="font-mono text-[11px] text-alert">Missing earlier-step outputs.</div>;
@@ -519,6 +537,7 @@ function Step5({ state }: { state: SubmitFlowState }) {
         address: SEPOLIA_ADDRESSES.ReportRegistry,
         abi: ReportRegistryAbi as any,
         functionName: "submitReport",
+        chainId: sepolia.id,
         args: [
           state.proofReceipt!.seal,
           j.root,
@@ -530,7 +549,7 @@ function Step5({ state }: { state: SubmitFlowState }) {
           state.pseudonymNode!,
           state.payloadCid!,
         ],
-        gas: 800000n, // dev-mode seal causes estimateGas to revert
+        gas: 800000n,
       });
       setMainTxHash(hash);
     } catch {
@@ -587,6 +606,12 @@ function Step5({ state }: { state: SubmitFlowState }) {
       )}
 
       {writeErr && <div className="mt-4 font-mono text-[11px] text-alert">{writeErr.message}</div>}
+      {txReverted && (
+        <div className="mt-4 space-y-3">
+          <div className="font-mono text-[11px] text-alert">Transaction reverted on-chain. Check Etherscan for the revert reason.</div>
+          <Btn kind="primary" size="md" onClick={() => { setMainTxHash(undefined); setCheckboxOk(false); }}>Try again</Btn>
+        </div>
+      )}
 
       {mainConfirmed && receipt && (
         <div className="mt-6 space-y-4">
@@ -596,11 +621,14 @@ function Step5({ state }: { state: SubmitFlowState }) {
           <div className="font-mono text-[10.5px] text-paper3">
             tx: <TxLink hash={receipt.transactionHash} />
           </div>
+
+          {investigationId && <InvestigationPanel investigationId={investigationId} reportHash={state.reportHash} />}
+
           <Link
-            to={`/reports/${state.reportHash}`}
+            to={`/reports/${state.reportHash}${investigationId ? `?invId=${investigationId}` : ""}`}
             className="block text-center w-full border border-amber text-amber font-mono text-[11px] uppercase tracking-[0.18em] py-3 hover:bg-amber/10 transition"
           >
-            View your report →
+            View your report in the registry →
           </Link>
         </div>
       )}
@@ -616,3 +644,5 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     </div>
   );
 }
+
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "/v1";
