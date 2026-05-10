@@ -84,6 +84,13 @@ export const dbHelpers = {
     return stmt.run(ensNode, ensName, admin, registeredAt);
   },
 
+  insertCompanyIfMissing: (ensNode: string, ensName: string, admin: string, registeredAt: number) => {
+    const stmt = db.prepare(
+      "INSERT OR IGNORE INTO companies (ens_node, ens_name, admin, registered_at) VALUES (?, ?, ?, ?)"
+    );
+    return stmt.run(ensNode, ensName, admin, registeredAt);
+  },
+
   getCompany: (ensNode: string) => {
     const stmt = db.prepare("SELECT * FROM companies WHERE ens_node = ?");
     return stmt.get(ensNode) as CompanyRow | undefined;
@@ -121,7 +128,7 @@ export const dbHelpers = {
 
   insertReport: (report: Omit<ReportRow, "context_pack_cid">) => {
     const stmt = db.prepare(`
-      INSERT INTO reports (
+      INSERT OR IGNORE INTO reports (
         report_hash, ens_node, nullifier, root_used, cid, category,
         submitted_at, pseudonym_node, tx_hash, block_number
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -157,8 +164,9 @@ export const dbHelpers = {
     const params: any[] = [];
 
     if (company) {
+      const companyRow = db.prepare("SELECT ens_node FROM companies WHERE ens_name = ?").get(company) as { ens_node: string } | undefined;
       conditions.push("ens_node = ?");
-      params.push(company);
+      params.push(companyRow?.ens_node ?? company);
     }
     if (category !== undefined) {
       conditions.push("category = ?");

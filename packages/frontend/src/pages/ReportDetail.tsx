@@ -14,15 +14,27 @@ export default function ReportDetail() {
     queryKey: ["report", reportHash],
     queryFn: async () => {
       const { data } = await api.GET("/reports/{reportHash}", { params: { path: { reportHash: reportHash! } } });
+      if (!data) throw new Error("not_found");
       return data;
     },
     enabled: !!reportHash,
+    retry: 12,
+    retryDelay: 5000,
   });
 
-  if (q.isLoading) {
-    return <div className="max-w-[1100px] mx-auto px-6 lg:px-10 py-20 font-mono text-[11px] text-paper3 uppercase tracking-[0.18em]">Loading…</div>;
+  if (!q.data && !q.isError) {
+    return (
+      <div className="max-w-[1100px] mx-auto px-6 lg:px-10 py-20 space-y-3">
+        <div className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-amber animate-pulse">
+          Waiting for on-chain indexer…
+        </div>
+        <div className="font-mono text-[10px] text-paper3">
+          Your transaction confirmed. The report will appear once the indexer picks up the event (usually within 15s).
+        </div>
+      </div>
+    );
   }
-  if (!q.data) {
+  if (q.isError) {
     return <div className="max-w-[1100px] mx-auto px-6 lg:px-10 py-20 font-mono text-[11px] text-alert">Report not found.</div>;
   }
   const r = q.data;

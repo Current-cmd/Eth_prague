@@ -1,15 +1,13 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
-import { useQuery } from "@tanstack/react-query";
 import { namehash, type Hex } from "viem";
-import { api } from "../lib/api";
-import { SEPOLIA_ADDRESSES, SEPOLIA_CONFIG } from "@shieldpass/shared/chain";
+import { SEPOLIA_ADDRESSES } from "@shieldpass/shared/chain";
 import { CompanyRegistryAbi, BadgeTreeManagerAbi, ShieldPassResolverAbi } from "@shieldpass/shared/abis";
-import { Btn, Modal, SectionHead, CategoryBadge, fmtRelative, TxLink } from "../components/shared";
+import { Btn, Modal, TxLink } from "../components/shared";
 import { ConnectButton } from "../components/ConnectButton";
 import { buildTree } from "../lib/merkle";
-import type { ReportCategory } from "@shieldpass/shared/enums";
+import { ACME_LEAVES, ACME_DEMO_ROOT } from "../lib/demoWorkers";
 
 export default function CompanyAdmin() {
   const { companyEns } = useParams<{ companyEns: string }>();
@@ -26,15 +24,6 @@ export default function CompanyAdmin() {
 
   const isAdmin: boolean = !!(admin && address && (admin as string).toLowerCase() === address.toLowerCase());
   const [showRotate, setShowRotate] = useState(false);
-
-  const reportsQ = useQuery({
-    queryKey: ["admin-reports", companyEns],
-    queryFn: async () => {
-      const { data } = await api.GET("/reports", { params: { query: { company: companyEns!, limit: 50 } } });
-      return data?.items ?? [];
-    },
-    enabled: !!companyEns,
-  });
 
   return (
     <div className="page-enter">
@@ -76,29 +65,6 @@ export default function CompanyAdmin() {
 
       {isAdmin && companyEns && ensNode && (
         <div className="max-w-[1240px] mx-auto px-6 lg:px-10 py-10">
-          <SectionHead kicker="01 — Reports" title="Inbound disclosures for this company" />
-          <div className="space-y-3">
-            {(reportsQ.data ?? []).map((r) => (
-              <div key={r.reportHash} className="border border-rule2 bg-panel p-5" style={{ borderRadius: 0 }}>
-                <div className="flex items-center justify-between mb-3">
-                  <CategoryBadge category={r.category as ReportCategory} size="sm" />
-                </div>
-                <div className="font-serif-disp text-xl leading-tight text-paper mb-2">
-                  {r.payload?.title ?? r.reportHash}
-                </div>
-                <div className="flex items-center justify-between mt-4 pt-3 border-t border-rule font-mono text-[10.5px] text-paper3">
-                  <span className="tnum">{r.reportHash.slice(0, 16)}…</span>
-                  <span>{fmtRelative(new Date(r.submittedAt * 1000).toISOString())}</span>
-                </div>
-              </div>
-            ))}
-            {(reportsQ.data ?? []).length === 0 && (
-              <div className="border border-dashed border-rule2 p-10 text-center font-mono text-[11px] text-paper3 uppercase tracking-[0.18em]">
-                No reports filed yet.
-              </div>
-            )}
-          </div>
-
           <RotateModal
             open={showRotate}
             onClose={() => setShowRotate(false)}
@@ -116,29 +82,37 @@ function RotateModal({ open, onClose, companyEns, ensNode }: { open: boolean; on
   const [parseError, setParseError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ leafCount: number; root: Hex } | null>(null);
 
-  const parentNode = namehash(SEPOLIA_CONFIG.shieldpassParentEns);
-
-  const { writeContract: writeRotate, data: rotateTx, isPending: rotating } = useWriteContract();
-  const { writeContract: writeText, data: textTx, isPending: textWriting } = useWriteContract();
+  const { writeContract: writeRotate, data: rotateTx, isPending: rotating, error: rotateError } = useWriteContract();
+  const { writeContract: writeText, data: textTx, isPending: textWriting, error: textError } = useWriteContract();
 
   const onCsvChange = (next: string) => {
     setCsv(next); setParseError(null); setPreview(null);
     const lines = next.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    console.log("[RotateModal] onCsvChange: lines =", lines.length);
     if (!lines.length) return;
     if (!lines.every((l) => /^0x[0-9a-fA-F]{64}$/.test(l))) {
       setParseError("Each line must be a 32-byte hex (0x… 64 hex chars).");
+      console.warn("[RotateModal] parse error: invalid hex lines");
       return;
     }
     if (lines.length > 65536) {
       setParseError("Too many leaves for depth-16 tree (max 65536).");
       return;
     }
-    const tree = buildTree(lines as Hex[], 16);
-    setPreview({ leafCount: lines.length, root: tree.root });
+    try {
+      console.log("[RotateModal] building tree for", lines.length, "leaves…");
+      const tree = buildTree(lines as Hex[], 16);
+      console.log("[RotateModal] tree root =", tree.root);
+      setPreview({ leafCount: lines.length, root: tree.root });
+    } catch (e) {
+      console.error("[RotateModal] buildTree threw:", e);
+      setParseError("Tree build failed: " + String(e));
+    }
   };
 
   const rotate = () => {
-    if (!preview) return;
+    console.log("[RotateModal] rotate() called — preview:", preview, "ensNode:", ensNode, "address:", SEPOLIA_ADDRESSES.BadgeTreeManager);
+    if (!preview) { console.warn("[RotateModal] rotate: no preview, aborting"); return; }
     writeRotate({
       address: SEPOLIA_ADDRESSES.BadgeTreeManager,
       abi: BadgeTreeManagerAbi as any,
@@ -148,14 +122,26 @@ function RotateModal({ open, onClose, companyEns, ensNode }: { open: boolean; on
   };
 
   const writeRootTextRecord = () => {
+    console.log("[RotateModal] writeRootTextRecord() called — preview:", preview, "ensNode:", ensNode);
     if (!preview) return;
     writeText({
       address: SEPOLIA_ADDRESSES.ShieldPassResolver,
       abi: ShieldPassResolverAbi as any,
       functionName: "setText",
-      args: [parentNode, "shieldpass.badge-tree-root", preview.root],
+      args: [ensNode, "shieldpass.badge-tree-root", preview.root],
     });
   };
+
+  const loadDemoTree = () => {
+    // Use the pre-computed root — avoids building the 65k-node tree in the browser
+    setCsv(ACME_LEAVES.join("\n"));
+    setPreview({ leafCount: ACME_LEAVES.length, root: ACME_DEMO_ROOT });
+    setParseError(null);
+    console.log("[RotateModal] loaded demo tree — root:", ACME_DEMO_ROOT);
+  };
+
+  const rotateBtnDisabled = !preview || rotating;
+  const textBtnDisabled = !preview || textWriting || !rotateTx;
 
   return (
     <Modal open={open} onClose={onClose} width="max-w-[760px]" label="Rotate badge tree">
@@ -165,7 +151,12 @@ function RotateModal({ open, onClose, companyEns, ensNode }: { open: boolean; on
       </div>
       <div className="px-8 py-7 space-y-6">
         <div>
-          <label className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3 block mb-2">Badge leaves (one hex per line, 32 bytes each)</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3">Badge leaves (one hex per line, 32 bytes each)</label>
+            <button onClick={loadDemoTree} className="font-mono text-[10.5px] text-amber hover:text-paper underline underline-offset-2">
+              Load demo tree (1000 badges)
+            </button>
+          </div>
           <textarea
             rows={10}
             value={csv}
@@ -175,6 +166,7 @@ function RotateModal({ open, onClose, companyEns, ensNode }: { open: boolean; on
             style={{ borderRadius: 0 }}
           />
           {parseError && <div className="mt-2 font-mono text-[11px] text-alert">{parseError}</div>}
+          {!csv && <div className="mt-2 font-mono text-[10.5px] text-paper3">Paste badge values or click "Load demo tree" above, then click 1) rotateRoot.</div>}
           {preview && (
             <div className="mt-3 font-mono text-[11px] text-paper3">
               {preview.leafCount} leaves · depth 16 · root <span className="text-paper">{preview.root}</span>
@@ -183,14 +175,18 @@ function RotateModal({ open, onClose, companyEns, ensNode }: { open: boolean; on
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Btn kind="primary" size="lg" disabled={!preview || rotating} onClick={rotate}>
+          <Btn kind="primary" size="lg" disabled={rotateBtnDisabled} onClick={rotate}
+            className={rotateBtnDisabled ? "opacity-40 cursor-not-allowed" : ""}>
             {rotating ? "Confirm in wallet…" : "1) rotateRoot"}
           </Btn>
-          <Btn kind="primary" size="lg" disabled={!preview || textWriting || !rotateTx} onClick={writeRootTextRecord}>
+          <Btn kind="primary" size="lg" disabled={textBtnDisabled} onClick={writeRootTextRecord}
+            className={textBtnDisabled ? "opacity-40 cursor-not-allowed" : ""}>
             {textWriting ? "Confirm in wallet…" : "2) setText badge-tree-root"}
           </Btn>
         </div>
 
+        {rotateError && <div className="font-mono text-[11px] text-alert">rotateRoot error: {rotateError.message.slice(0, 300)}</div>}
+        {textError && <div className="font-mono text-[11px] text-alert">setText error: {textError.message.slice(0, 300)}</div>}
         {rotateTx && <div className="font-mono text-[11px] text-verify">rotate tx: <TxLink hash={rotateTx} /></div>}
         {textTx && <div className="font-mono text-[11px] text-verify">setText tx: <TxLink hash={textTx} /></div>}
       </div>

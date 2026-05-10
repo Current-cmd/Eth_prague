@@ -30,6 +30,8 @@ function downloadJson(obj: unknown, filename: string) {
 }
 
 function deriveSlot(nullifier: `0x${string}`, total: number): number {
+  // Slots 0 and 1 are reserved for the two named demo workers.
+  // Use the full remaining pool (slots 2..total-1) to minimise badge-value collisions.
   const available = Math.max(1, total - 2);
   const idx = Number(BigInt(nullifier) % BigInt(available));
   return 2 + idx;
@@ -104,7 +106,7 @@ export default function Onboarding() {
       setStage("proving");
 
       // Fake ZK proof generation (UX beat — MockZKEmailVerifier accepts anything)
-      await new Promise((r) => setTimeout(r, 3000));
+      await new Promise((r) => setTimeout(r, 15000));
       setStage("tx");
 
       writeContract(
@@ -114,6 +116,7 @@ export default function Onboarding() {
           functionName: "claimBadge",
           // MockZKEmailVerifier accepts any proof bytes
           args: ["0x", domainHash, nullifier],
+          gas: 300000n,
         },
         {
           onError: (e) => {
