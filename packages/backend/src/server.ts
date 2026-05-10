@@ -12,6 +12,11 @@ import { otpRoute } from "./routes/otp.js";
 
 const app = Fastify({
   logger: { level: process.env.LOG_LEVEL ?? "info" },
+  ajv: {
+    customOptions: {
+      removeAdditional: false, // reject (400) instead of silently stripping extra fields
+    },
+  },
 });
 
 await app.register(cors, {

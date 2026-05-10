@@ -8,6 +8,7 @@ import ReportDetail from "./pages/ReportDetail";
 import CompanyAdmin from "./pages/CompanyAdmin";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
+import FlowchartPage from "./lib/flowchart/FlowchartPage";
 
 const TABS = [
   { to: "/",       label: "Public Registry",     short: "Registry" },
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/reports/:reportHash" element={<ReportDetail />} />
           <Route path="/admin/:companyEns" element={<CompanyAdmin />} />
+          <Route path="/flowchart" element={<FlowchartPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
