@@ -16,7 +16,7 @@ export const wagmiConfig = createConfig({
           walletConnect({
             projectId,
             metadata: {
-              name: "ShieldPass",
+              name: "Lumen",
               description: "Disclosures, verified.",
               url: "https://shieldpass.xyz",
               icons: [],

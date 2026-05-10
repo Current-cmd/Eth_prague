@@ -62,7 +62,7 @@ export default function Feed() {
             </div>
           </div>
           <h1 className="font-serif-disp text-[88px] md:text-[136px] leading-[0.9] text-paper text-center tracking-[-0.04em]">
-            ShieldPass
+            Lumen
           </h1>
         </div>
       </div>
