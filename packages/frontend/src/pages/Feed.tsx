@@ -136,6 +136,15 @@ export default function Feed() {
                 >
                   <div className="flex items-center justify-between mb-4">
                     <CategoryBadge category={r.category as ReportCategory} size="sm" />
+                    {(r as any).credibilityScore != null && (
+                      <span className={`font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-0.5 border ${
+                        (r as any).credibilityScore >= 70 ? "text-verify border-verify/40" :
+                        (r as any).credibilityScore >= 40 ? "text-amber border-amber/40" :
+                        "text-alert border-alert/40"
+                      }`} style={{ borderRadius: 0 }}>
+                        {(r as any).credibilityScore}/100
+                      </span>
+                    )}
                   </div>
                   <div className="mb-3">
                     {co && <EnsName name={co.ensName} className="text-[11.5px]" />}

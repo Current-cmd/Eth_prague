@@ -8,6 +8,7 @@ import { proofsRoute } from "./routes/proofs.js";
 import { reportsRoute } from "./routes/reports.js";
 import { contextPackRoute, pseudonymsRoute } from "./routes/contextPack.js";
 import { badgesRoute } from "./routes/badges.js";
+import { investigateRoute } from "./routes/investigate.js";
 import { otpRoute } from "./routes/otp.js";
 
 const app = Fastify({
@@ -35,6 +36,7 @@ await app.register(reportsRoute, { prefix: "/v1" });
 await app.register(contextPackRoute, { prefix: "/v1" });
 await app.register(pseudonymsRoute, { prefix: "/v1" });
 await app.register(badgesRoute, { prefix: "/v1" });
+await app.register(investigateRoute, { prefix: "/v1" });
 await app.register(otpRoute, { prefix: "/v1" });
 
 // Warn (but do not crash) if Space KMS credentials are absent
