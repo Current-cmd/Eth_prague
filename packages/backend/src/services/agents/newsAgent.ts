@@ -105,13 +105,16 @@ export const newsAgent: ScraperAgent = {
     const x402Enabled = process.env.X402_ENABLED !== "false";
 
     if (x402Enabled) {
-      // x402 path — loud failure on error, no silent fallback
-      const { articles, paymentInfo } = await fetchViaX402(input);
-      return { agentId: "news", input, articles, paymentInfo };
-    } else {
-      // Token fallback — only when manually set X402_ENABLED=false
-      const articles = await fetchViaToken(input);
-      return { agentId: "news", input, articles };
+      try {
+        const { articles, paymentInfo } = await fetchViaX402(input);
+        return { agentId: "news", input, articles, paymentInfo };
+      } catch (err) {
+        console.warn(`[newsAgent] x402 failed, falling back to token path: ${err}`);
+      }
     }
+
+    // Token fallback — used when x402 is disabled or when x402 throws
+    const articles = await fetchViaToken(input);
+    return { agentId: "news", input, articles };
   },
 };
