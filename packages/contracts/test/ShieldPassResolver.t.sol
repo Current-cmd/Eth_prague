@@ -48,14 +48,15 @@ contract ShieldPassResolverTest is Test {
         );
     }
 
-    // Compute what _parentNode() returns for _workerDnsName():
-    // Skip "worker-7f3a" (12+1=13 bytes), then accumulate "workers", "acme", "shieldpass-demo", "eth"
+    // Standard ENS namehash of "workers.acme.shieldpass-demo.eth" — matches
+    // the contract's _dnsNamehash(name, skipLabels=1) which processes labels
+    // right-to-left starting from the TLD.
     function _expectedParentNode() internal pure returns (bytes32 node) {
         node = bytes32(0);
-        node = keccak256(abi.encodePacked(node, keccak256("workers")));
-        node = keccak256(abi.encodePacked(node, keccak256("acme")));
-        node = keccak256(abi.encodePacked(node, keccak256("shieldpass-demo")));
         node = keccak256(abi.encodePacked(node, keccak256("eth")));
+        node = keccak256(abi.encodePacked(node, keccak256("shieldpass-demo")));
+        node = keccak256(abi.encodePacked(node, keccak256("acme")));
+        node = keccak256(abi.encodePacked(node, keccak256("workers")));
     }
 
     // ENS namehash of "worker-7f3a.workers.acme.shieldpass-demo.eth"
@@ -116,10 +117,10 @@ contract ShieldPassResolverTest is Test {
         assertEq(abi.decode(result, (string)), "sub-val");
     }
 
-    // Unknown selector returns empty bytes
-    function test_resolve_unknown_selector_returns_empty() public view {
+    // Unknown selector reverts (per ENSIP-10 hardening in fix 779f6c5)
+    function test_resolve_unknown_selector_reverts() public {
         bytes memory data = abi.encodeWithSelector(bytes4(0xDEADBEEF), bytes32(0), "key");
-        bytes memory result = resolver.resolve(_workerDnsName(), data);
-        assertEq(result.length, 0);
+        vm.expectRevert(bytes("unsupported selector"));
+        resolver.resolve(_workerDnsName(), data);
     }
 }

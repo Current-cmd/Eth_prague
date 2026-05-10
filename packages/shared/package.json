@@ -13,6 +13,7 @@
     "build": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^22.10",
     "openapi-typescript": "^7.6.0",
     "typescript": "^5.8.0"
   }
