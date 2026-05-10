@@ -50,7 +50,8 @@ interface PoolTransaction {
   id: string;
   agentId: string;
   label: string;
-  cost: number;
+  amountUsd: string;
+  signed: boolean;
   timestamp: string;
 }
 
@@ -60,7 +61,7 @@ interface InvestigationSnapshot {
   log: LogEvent[];
   plan?: { company: string; claims: Claim[] };
   dossier?: Dossier;
-  pool: { balance: number; transactions: PoolTransaction[] };
+  pool: { balance: number; address?: string; transactions: PoolTransaction[] };
   error?: string;
 }
 
@@ -81,12 +82,12 @@ async function startInvestigation(text: string, company: string): Promise<{ id: 
   return res.json() as Promise<{ id: string }>;
 }
 
-async function fetchPool(): Promise<{ balance: number; transactions: PoolTransaction[] }> {
+async function fetchPool(): Promise<{ balance: number; address?: string; transactions: PoolTransaction[] }> {
   const res = await fetch(`${API}/investigate/pool`);
   return res.json();
 }
 
-async function resetPool(): Promise<{ balance: number; transactions: PoolTransaction[] }> {
+async function resetPool(): Promise<{ balance: number; address?: string; transactions: PoolTransaction[] }> {
   const res = await fetch(`${API}/investigate/pool/reset`, { method: "POST" });
   return res.json();
 }
@@ -475,7 +476,7 @@ function RightPanel({
   status,
   onReset,
 }: {
-  pool?: { balance: number; transactions: PoolTransaction[] };
+  pool?: { balance: number; address?: string; transactions: PoolTransaction[] };
   dossier?: Dossier;
   status?: InvestigationStatus;
   onReset: () => Promise<void>;
@@ -509,37 +510,44 @@ function RightPanel({
         </div>
       )}
 
-      {/* Pool sidebar */}
+      {/* x402 wallet sidebar */}
       <div className="border border-rule2 bg-panel file-corners p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-paper3">
-            Investigation Pool
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-paper3">
+              x402 Wallet · Base USDC
+            </div>
+            {pool?.address && (
+              <div className="font-mono text-[9.5px] text-paper3 mt-0.5 tnum">
+                {pool.address.slice(0, 6)}…{pool.address.slice(-4)}
+              </div>
+            )}
           </div>
           <button
             onClick={doReset}
             disabled={resetting}
             className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-paper3 hover:text-alert disabled:opacity-40"
           >
-            {resetting ? "…" : "Reset"}
+            {resetting ? "…" : "Reset log"}
           </button>
         </div>
 
         <div className="text-center mb-4">
           <div className="font-serif-disp text-[36px] leading-none text-paper">
-            ${pool?.balance.toFixed(2) ?? "50.00"}
+            ${pool?.balance.toFixed(2) ?? "—"}
           </div>
-          <div className="font-mono text-[10px] text-paper3 mt-1">USDC balance</div>
+          <div className="font-mono text-[10px] text-paper3 mt-1">USDC on Base</div>
         </div>
 
         {pool && pool.transactions.length > 0 && (
           <div className="space-y-1.5 border-t border-rule pt-3 max-h-[220px] overflow-y-auto">
             {[...pool.transactions].reverse().map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between">
-                <span className="font-mono text-[10.5px] text-paper3 truncate max-w-[170px]">
+              <div key={tx.id} className="flex items-center justify-between gap-2">
+                <span className="font-mono text-[10px] text-paper3 truncate">
                   {tx.label}
                 </span>
-                <span className="font-mono text-[10.5px] text-alert shrink-0 ml-2">
-                  −${tx.cost.toFixed(2)}
+                <span className={`font-mono text-[10px] shrink-0 ${tx.signed ? "text-alert" : "text-verify"}`}>
+                  {tx.signed ? `💸 −$${tx.amountUsd}` : "⚡ prepaid"}
                 </span>
               </div>
             ))}

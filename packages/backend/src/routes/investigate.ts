@@ -3,7 +3,7 @@ import { runOrchestrator } from "../services/agents/orchestrator.js";
 import { runSynthesis } from "../services/agents/synthesisAgent.js";
 import { newsAgent } from "../services/agents/newsAgent.js";
 import { webAgent } from "../services/agents/webAgent.js";
-import { payForAgentRun, getPool, resetPool } from "../services/payments/mockPayment.js";
+import { payForAgentRun, getPool, resetPool, type Pool } from "../services/payments/mockPayment.js";
 import { dbHelpers } from "../services/db.js";
 import type {
   WhistleblowerReport,
@@ -55,7 +55,6 @@ async function runPipeline(state: InvestigationState): Promise<void> {
       const agent = item.agent === "news" ? newsAgent : webAgent;
       const agentLabel = item.agent === "news" ? "News Agent" : "Web Agent";
 
-      payForAgentRun(item.agent, `${agentLabel} — ${item.query}`);
       emit({
         type: "agent",
         message: `${agentLabel} investigating: "${item.query}"`,
@@ -67,6 +66,9 @@ async function runPipeline(state: InvestigationState): Promise<void> {
         claimId: item.claimId,
         query: item.query,
       });
+
+      // Record payment after the run so we capture real x402 amounts
+      payForAgentRun(item.agent, `${agentLabel} — ${item.query}`, result.paymentInfo);
 
       state.scraperResults.push(result);
 
@@ -164,12 +166,12 @@ export const investigateRoute: FastifyPluginAsync = async (app) => {
 
   // GET /v1/investigate/pool — current pool state (before any investigation exists)
   app.get<{
-    Reply: ReturnType<typeof getPool>;
+    Reply: Pool;
   }>("/investigate/pool", async () => getPool());
 
   // POST /v1/investigate/pool/reset — reset pool for demo restarts
   app.post<{
-    Reply: ReturnType<typeof getPool>;
+    Reply: Pool;
   }>("/investigate/pool/reset", async () => {
     resetPool();
     return getPool();
@@ -185,7 +187,7 @@ export const investigateRoute: FastifyPluginAsync = async (app) => {
           log: LogEvent[];
           plan?: OrchestratorPlan;
           dossier?: Dossier;
-          pool: ReturnType<typeof getPool>;
+          pool: Pool;
           error?: string;
         }
       | { code: string; message: string };
@@ -217,7 +219,7 @@ export const investigateRoute: FastifyPluginAsync = async (app) => {
         log: state.log,
         plan: state.plan,
         dossier: state.dossier,
-        pool: getPool(),
+        pool: await getPool(),
         error: state.error,
       };
     }

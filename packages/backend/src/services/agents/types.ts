@@ -51,6 +51,7 @@ export interface ScraperResult {
   input: ScraperInput;
   articles?: NewsArticle[];
   pages?: WebPage[];
+  paymentInfo?: { amountUsd: string; signed: boolean };
 }
 
 // Swap boundary: replace the implementation in newsAgent.ts / webAgent.ts
