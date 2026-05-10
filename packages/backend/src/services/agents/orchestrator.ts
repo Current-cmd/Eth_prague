@@ -90,16 +90,22 @@ export async function runOrchestrator(
 
   const plan = raw as unknown as OrchestratorPlan;
 
-  // Defensive: GLM sometimes omits optional arrays — fill in safe defaults.
+  // Defensive: GLM sometimes omits optional arrays or uses wrong field names.
   plan.claims   = Array.isArray(plan.claims)   ? plan.claims   : [];
   plan.dispatch = Array.isArray(plan.dispatch) ? plan.dispatch : [];
+
+  // Normalise each claim: GLM sometimes uses 'description' or 'claim' instead of 'text'
+  plan.claims = plan.claims.map((c: any, i: number) => ({
+    id:   c.id   ?? c.claimId ?? `claim_${i + 1}`,
+    text: c.text ?? c.description ?? c.claim ?? c.content ?? String(c.id ?? `claim_${i + 1}`),
+  }));
 
   // If dispatch is empty but claims exist, generate a default news query per claim.
   if (plan.dispatch.length === 0 && plan.claims.length > 0) {
     plan.dispatch = plan.claims.map((c) => ({
       claimId: c.id,
       agent: "news" as const,
-      query: `${plan.company} ${c.text.slice(0, 80)}`,
+      query: `${plan.company} ${(c.text ?? "").slice(0, 80)}`,
     }));
   }
 
@@ -110,7 +116,7 @@ export async function runOrchestrator(
   });
 
   for (const claim of plan.claims) {
-    emit({ type: "info", message: `  → ${claim.text}` });
+    emit({ type: "info", message: `  → ${claim.text ?? claim.id}` });
   }
 
   const dispatchSummary = plan.dispatch
