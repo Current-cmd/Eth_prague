@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { CategoryBadge, Hash, TxLink, fmtDateTime } from "../components/shared";
@@ -36,7 +36,8 @@ const V_COLOR: Record<VerdictLabel, string> = {
 
 export default function ReportDetail() {
   const { reportHash } = useParams<{ reportHash: string }>();
-  const [investigationId, setInvestigationId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const [investigationId, setInvestigationId] = useState<string | null>(searchParams.get("invId"));
   const [startingInv, setStartingInv] = useState(false);
 
   const q = useQuery({

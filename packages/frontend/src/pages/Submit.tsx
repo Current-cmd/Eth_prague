@@ -624,15 +624,12 @@ function Step5({ state }: { state: SubmitFlowState }) {
 
           {investigationId && <InvestigationPanel investigationId={investigationId} reportHash={state.reportHash} />}
 
-          {/* Show registry link — immediately, or after investigation if one is running */}
-          {(!investigationId || true) && (
-            <Link
-              to={`/reports/${state.reportHash}`}
-              className="block text-center w-full border border-amber text-amber font-mono text-[11px] uppercase tracking-[0.18em] py-3 hover:bg-amber/10 transition"
-            >
-              View your report in the registry →
-            </Link>
-          )}
+          <Link
+            to={`/reports/${state.reportHash}${investigationId ? `?invId=${investigationId}` : ""}`}
+            className="block text-center w-full border border-amber text-amber font-mono text-[11px] uppercase tracking-[0.18em] py-3 hover:bg-amber/10 transition"
+          >
+            View your report in the registry →
+          </Link>
         </div>
       )}
     </div>
