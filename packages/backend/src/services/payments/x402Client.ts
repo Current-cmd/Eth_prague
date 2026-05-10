@@ -133,7 +133,7 @@ interface PaymentRequired {
 }
 
 async function signPayment(req: PaymentRequirements): Promise<string> {
-  // Validate network before burning gas on a misrouted signature
+  // Guard 1: network must be Base mainnet — wrong network = wrong chain ID in domain
   if (req.network !== BASE_MAINNET_CAIP2) {
     throw new Error(
       `[x402] FAIL: challenge requests network ${req.network}, ` +
@@ -141,18 +141,34 @@ async function signPayment(req: PaymentRequirements): Promise<string> {
     );
   }
 
+  // Guard 2: require explicit domain strings from the challenge.
+  // Never substitute defaults — an incorrect domain produces a signature that is
+  // cryptographically valid but will fail USDC's on-chain verifier silently.
+  if (!req.extra?.name || !req.extra?.version) {
+    throw new Error(
+      `[x402] FAIL: challenge missing extra.name or extra.version — refusing to sign. ` +
+        `Cannot construct EIP-712 domain without the token's canonical name and version. ` +
+        `Got extra=${JSON.stringify(req.extra ?? null)}`
+    );
+  }
+
   const now = Math.floor(Date.now() / 1000);
   // 10-second grace before validAfter handles minor clock skew between client/server
-  const validAfter  = BigInt(now - 10);
-  const validBefore = BigInt(now + req.maxTimeoutSeconds);
+  const validAfterBig  = BigInt(now - 10);
+  const validBeforeBig = BigInt(now + req.maxTimeoutSeconds);
   // 32-byte random nonce — ERC-3009 nonces are one-time-use at the contract level
   const nonce = toHex(crypto.getRandomValues(new Uint8Array(32))) as `0x${string}`;
-  const value = BigInt(req.amount);
-  const from  = getAccount().address;
+  // Keep the original string from the challenge so both paths use the same source
+  const amountStr = req.amount;
+  const valueBig  = BigInt(amountStr);
+  const from = getAccount().address;
 
+  // ── viem path: BigInt types for correct EIP-712 keccak hashing ───────────
+  // uint256 fields MUST be bigint here — viem encodes them as 32-byte big-endian.
+  // bytes32 nonce is a 0x-prefixed hex string (already 32 bytes, no coercion needed).
   const domain = {
-    name:              req.extra?.name    ?? "USD Coin",
-    version:           req.extra?.version ?? "2",
+    name:              req.extra.name,
+    version:           req.extra.version,
     chainId:           8453,
     verifyingContract: req.asset as `0x${string}`,
   } as const;
@@ -171,10 +187,10 @@ async function signPayment(req: PaymentRequirements): Promise<string> {
   const message = {
     from,
     to:          req.payTo as `0x${string}`,
-    value,
-    validAfter,
-    validBefore,
-    nonce,
+    value:       valueBig,       // bigint — viem encodes as uint256
+    validAfter:  validAfterBig,  // bigint — viem encodes as uint256
+    validBefore: validBeforeBig, // bigint — viem encodes as uint256
+    nonce,                       // 0x-hex string — viem encodes as bytes32
   } as const;
 
   console.info("[x402] signing EIP-712 transferWithAuthorization");
@@ -187,16 +203,28 @@ async function signPayment(req: PaymentRequirements): Promise<string> {
     message,
   });
 
-  // The authorization object is echoed back to the server in plain text;
-  // the signature is what proves authenticity.
+  // ── JSON path: string types for the PAYMENT-SIGNATURE header ─────────────
+  // authorization is echoed in plain text so Apify can reconstruct the typed data
+  // and verify the signature. BigInts must be serialised as decimal strings;
+  // JSON.stringify(BigInt) would throw, so we never let BigInts reach this object.
   const authorization = {
     from,
     to:          req.payTo,
-    value:       req.amount,
-    validAfter:  String(validAfter),
-    validBefore: String(validBefore),
-    nonce,
+    value:       amountStr,               // original string from challenge — no precision loss
+    validAfter:  String(validAfterBig),   // decimal string
+    validBefore: String(validBeforeBig),  // decimal string
+    nonce,                                // 0x-hex string — already a string
   };
+
+  // Sanity check: confirm the decimal strings round-trip back to the same bigints
+  // that viem signed over. If this fires, there is a bug in the numeric conversions.
+  if (
+    BigInt(authorization.value)       !== valueBig       ||
+    BigInt(authorization.validAfter)  !== validAfterBig  ||
+    BigInt(authorization.validBefore) !== validBeforeBig
+  ) {
+    throw new Error("[x402] INTERNAL: BigInt ↔ string round-trip mismatch — aborting to avoid sending a mismatched payload");
+  }
 
   const paymentPayload = {
     x402Version: 2,
@@ -204,6 +232,7 @@ async function signPayment(req: PaymentRequirements): Promise<string> {
     payload:     { signature, authorization },
   };
 
+  // paymentPayload contains only strings/numbers — safe to JSON.stringify
   return Buffer.from(JSON.stringify(paymentPayload)).toString("base64");
 }
 
