@@ -148,6 +148,27 @@ export default function ReportDetail() {
             </div>
           </div>
 
+          {r.payload && (
+            <div className="border-t border-rule2 pt-5">
+              <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-paper3 mb-3">Reporter Identity</div>
+              <div className="space-y-2.5">
+                <KV k="ENS handle" v={
+                  <span className="font-mono text-[11px] text-paper break-all">{r.payload.pseudonym}</span>
+                } />
+                <KV k="Filed against" v={
+                  <span className="font-mono text-[11px] text-paper break-all">{r.payload.company.ensName}</span>
+                } />
+                <KV k="Employer match" v={(() => {
+                  const workerDomain = `.workers.${r.payload!.company.ensName}`;
+                  const matches = r.payload!.pseudonym.endsWith(workerDomain);
+                  return matches
+                    ? <span className="font-mono text-[11px] text-verify">✓ Reporter is a registered worker of this company</span>
+                    : <span className="font-mono text-[11px] text-alert">✕ Reporter ENS does not match the company</span>;
+                })()} />
+              </div>
+            </div>
+          )}
+
           <div className="border-t border-rule2 pt-5">
             <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-verify mb-3">Verification</div>
             <ProofStatus
