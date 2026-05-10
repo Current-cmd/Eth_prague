@@ -38,11 +38,27 @@ const BADGE_TREE_MANAGER_ABI = [
   },
 ] as const;
 
+// First block of the ReportRegistry deployment — backfill starts here on a fresh DB
+const DEPLOY_BLOCK = 10817304;
+// Max block range per getLogs call — keeps us within public RPC limits
+const CHUNK_SIZE = 2000n;
+
 let lastIndexedBlock: number;
+
+// Small cache so parallel logs in the same block share one RPC call
+const blockTsCache = new Map<bigint, number>();
+async function getBlockTimestamp(blockNumber: bigint): Promise<number> {
+  if (!blockTsCache.has(blockNumber)) {
+    const block = await client.getBlock({ blockNumber });
+    blockTsCache.set(blockNumber, Number(block.timestamp));
+  }
+  return blockTsCache.get(blockNumber)!;
+}
 
 export async function startIndexer() {
   const saved = dbHelpers.getMeta("last_indexed_block");
-  lastIndexedBlock = saved ? parseInt(saved, 10) : Number((await client.getBlockNumber()) - 1n);
+  // On a fresh DB start from the deploy block; otherwise resume from where we left off
+  lastIndexedBlock = saved ? parseInt(saved, 10) : DEPLOY_BLOCK - 1;
 
   await indexLogs();
 
@@ -72,7 +88,40 @@ export async function startIndexer() {
 }
 
 async function indexLogs() {
-  // TODO: Index historical logs from lastIndexedBlock to current
+  const currentBlock = await client.getBlockNumber();
+  const fromBlock = BigInt(lastIndexedBlock) + 1n;
+
+  if (fromBlock > currentBlock) {
+    console.log(`[Indexer] No backfill needed (already at block ${lastIndexedBlock})`);
+    return;
+  }
+
+  console.log(`[Indexer] Backfilling blocks ${fromBlock}–${currentBlock} (${CHUNK_SIZE} per chunk)…`);
+  let reportCount = 0;
+
+  for (let start = fromBlock; start <= currentBlock; start += CHUNK_SIZE) {
+    const end = start + CHUNK_SIZE - 1n < currentBlock ? start + CHUNK_SIZE - 1n : currentBlock;
+
+    const [reportLogs, rootLogs] = await Promise.all([
+      client.getLogs({
+        address: SEPOLIA_ADDRESSES.ReportRegistry,
+        event: REPORT_REGISTRY_ABI[0],
+        fromBlock: start,
+        toBlock: end,
+      }),
+      client.getLogs({
+        address: SEPOLIA_ADDRESSES.BadgeTreeManager,
+        event: BADGE_TREE_MANAGER_ABI[0],
+        fromBlock: start,
+        toBlock: end,
+      }),
+    ]);
+
+    for (const log of reportLogs) { await processReportSubmitted(log); reportCount++; }
+    for (const log of rootLogs)   { await processRootRotated(log); }
+  }
+
+  console.log(`[Indexer] Backfill complete — ${reportCount} report(s) indexed up to block ${currentBlock}`);
 }
 
 type ReportLog = Parameters<Parameters<typeof client.watchContractEvent<typeof REPORT_REGISTRY_ABI, "ReportSubmitted">>[0]["onLogs"]>[0][number];
@@ -83,6 +132,10 @@ async function processReportSubmitted(log: ReportLog) {
 
   if (!ensNode || !reportHash || !nullifier || !rootUsed || !cid) return;
 
+  const blockBig = log.blockNumber ?? 0n;
+  const blockNum = Number(blockBig);
+  const submittedAt = await getBlockTimestamp(blockBig);
+
   dbHelpers.insertReport({
     report_hash: reportHash,
     ens_node: ensNode,
@@ -90,16 +143,15 @@ async function processReportSubmitted(log: ReportLog) {
     root_used: rootUsed,
     cid,
     category: Number(category),
-    submitted_at: Number(log.blockNumber),
+    submitted_at: submittedAt,
     pseudonym_node: pseudonymNode ?? "0x0000000000000000000000000000000000000000",
     tx_hash: log.transactionHash ?? "0x",
-    block_number: Number(log.blockNumber),
+    block_number: blockNum,
   });
 
-  const blockNumber = Number(log.blockNumber);
-  if (blockNumber > lastIndexedBlock) {
-    lastIndexedBlock = blockNumber;
-    dbHelpers.setMeta("last_indexed_block", String(blockNumber));
+  if (blockNum > lastIndexedBlock) {
+    lastIndexedBlock = blockNum;
+    dbHelpers.setMeta("last_indexed_block", String(blockNum));
   }
 }
 

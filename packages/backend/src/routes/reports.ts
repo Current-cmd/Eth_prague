@@ -50,8 +50,19 @@ export const reportsRoute: FastifyPluginAsync = async (app) => {
       };
       const categoryNum = category !== undefined ? categoryMap[category] : undefined;
 
+      // The query string carries an ENS name (e.g. "acme.shieldpass-demo.eth")
+      // but the reports table is keyed on ens_node (bytes32 hex). Resolve here.
+      let companyEnsNode: string | undefined;
+      if (company) {
+        const coRow = db.prepare("SELECT ens_node FROM companies WHERE ens_name = ?").get(company) as
+          | { ens_node: string }
+          | undefined;
+        if (!coRow) return { items: [], nextCursor: null };
+        companyEnsNode = coRow.ens_node;
+      }
+
       const result = dbHelpers.listReports({
-        company,
+        company: companyEnsNode,
         category: categoryNum,
         since,
         limit,

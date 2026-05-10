@@ -128,7 +128,7 @@ export const dbHelpers = {
 
   insertReport: (report: Omit<ReportRow, "context_pack_cid">) => {
     const stmt = db.prepare(`
-      INSERT INTO reports (
+      INSERT OR IGNORE INTO reports (
         report_hash, ens_node, nullifier, root_used, cid, category,
         submitted_at, pseudonym_node, tx_hash, block_number
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
