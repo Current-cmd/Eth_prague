@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { CategoryBadge, Hash, TxLink, fmtDateTime } from "../components/shared";
 import { EnsName } from "../components/EnsName";
 import { ProofStatus } from "../components/ProofStatus";
+import { InvestigationPanel } from "../components/InvestigationPanel";
 import { CATEGORY_FIELDS } from "../lib/categoryFields";
 import type { ReportCategory } from "@shieldpass/shared/enums";
 
@@ -34,6 +36,8 @@ const V_COLOR: Record<VerdictLabel, string> = {
 
 export default function ReportDetail() {
   const { reportHash } = useParams<{ reportHash: string }>();
+  const [investigationId, setInvestigationId] = useState<string | null>(null);
+  const [startingInv, setStartingInv] = useState(false);
 
   const q = useQuery({
     queryKey: ["report", reportHash],
@@ -54,6 +58,23 @@ export default function ReportDetail() {
   const fields = r.payload?.category ? CATEGORY_FIELDS[r.payload.category as ReportCategory] : [];
   const dossier = (r as any).dossier as Dossier | null | undefined;
   const credibilityScore = (r as any).credibilityScore as number | null | undefined;
+
+  const startInvestigation = async () => {
+    if (!r.payload) return;
+    setStartingInv(true);
+    try {
+      const text = [r.payload.title, r.payload.summary].filter(Boolean).join("\n\n");
+      const res = await fetch(`${(import.meta.env.VITE_API_BASE as string | undefined) ?? "/v1"}/investigate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, company: r.payload.company?.ensName, reportHash: r.reportHash }),
+      });
+      const { id } = await res.json() as { id: string };
+      setInvestigationId(id);
+    } finally {
+      setStartingInv(false);
+    }
+  };
 
   return (
     <div className="page-enter max-w-[1100px] mx-auto px-6 lg:px-10 py-10">
@@ -137,8 +158,8 @@ export default function ReportDetail() {
         </aside>
       </div>
 
-      {/* AI Investigation Dossier */}
-      {dossier && (
+      {/* AI Investigation Dossier — show saved dossier OR live investigation panel */}
+      {dossier ? (
         <div className="mt-6 border border-rule2 bg-panel file-corners p-6 space-y-5">
           <div className="flex items-center justify-between">
             <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-paper3">AI Investigation Dossier</div>
@@ -164,6 +185,31 @@ export default function ReportDetail() {
             ))}
           </div>
         </div>
+      ) : investigationId ? (
+        <div className="mt-6">
+          <InvestigationPanel
+            investigationId={investigationId}
+            reportHash={r.reportHash}
+            onComplete={() => q.refetch()}
+          />
+        </div>
+      ) : (
+        r.payload && (
+          <div className="mt-6 border border-rule2 bg-panel p-6 flex items-center justify-between gap-6">
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-paper3 mb-1">AI Investigation</div>
+              <div className="text-[13px] text-paper2">Run an automated public-record investigation against this disclosure.</div>
+            </div>
+            <button
+              onClick={startInvestigation}
+              disabled={startingInv}
+              className="shrink-0 border border-amber text-amber font-mono text-[11px] uppercase tracking-[0.18em] px-5 py-2.5 hover:bg-amber/10 transition disabled:opacity-50"
+              style={{ borderRadius: 0 }}
+            >
+              {startingInv ? "Starting…" : "Investigate ↗"}
+            </button>
+          </div>
+        )
       )}
     </div>
   );
