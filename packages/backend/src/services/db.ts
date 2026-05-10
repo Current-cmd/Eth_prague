@@ -74,6 +74,19 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_email_otps_email ON email_otps(email, used, expires_at);
 
+  CREATE TABLE IF NOT EXISTS badge_credentials (
+    pseudonym_node TEXT PRIMARY KEY,
+    key_id         TEXT NOT NULL,
+    badge_hash     TEXT NOT NULL,
+    company        TEXT NOT NULL,
+    leaf_index     INTEGER NOT NULL,
+    revoked        INTEGER NOT NULL DEFAULT 0,
+    registered_at  INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_badge_credentials_company
+    ON badge_credentials(company, revoked);
+
   CREATE TABLE IF NOT EXISTS investigation_results (
     report_hash TEXT PRIMARY KEY,
     dossier_json TEXT NOT NULL,
@@ -236,6 +249,42 @@ export const dbHelpers = {
     return stmt.get(reportHash) as InvestigationResultRow | undefined;
   },
 
+  insertBadgeCredential: (
+    pseudonymNode: string,
+    keyId: string,
+    badgeHash: string,
+    company: string,
+    leafIndex: number
+  ) => {
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO badge_credentials
+        (pseudonym_node, key_id, badge_hash, company, leaf_index, revoked, registered_at)
+      VALUES (?, ?, ?, ?, ?, 0, ?)
+    `);
+    return stmt.run(pseudonymNode, keyId, badgeHash, company, leafIndex, Math.floor(Date.now() / 1000));
+  },
+
+  getBadgeByPseudonymNode: (pseudonymNode: string) => {
+    const stmt = db.prepare(
+      "SELECT * FROM badge_credentials WHERE pseudonym_node = ? AND revoked = 0"
+    );
+    return stmt.get(pseudonymNode) as BadgeCredentialRow | undefined;
+  },
+
+  revokeBadgeCredential: (pseudonymNode: string) => {
+    const stmt = db.prepare(
+      "UPDATE badge_credentials SET revoked = 1 WHERE pseudonym_node = ?"
+    );
+    return stmt.run(pseudonymNode);
+  },
+
+  listActiveBadges: (company: string) => {
+    const stmt = db.prepare(
+      "SELECT * FROM badge_credentials WHERE company = ? AND revoked = 0 ORDER BY leaf_index ASC"
+    );
+    return stmt.all(company) as BadgeCredentialRow[];
+  },
+
   setMeta: (key: string, value: string) => {
     const stmt = db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)");
     return stmt.run(key, value);
@@ -287,4 +336,14 @@ export type InvestigationResultRow = {
   dossier_json: string;
   credibility_score: number;
   completed_at: number;
+};
+
+export type BadgeCredentialRow = {
+  pseudonym_node: string;
+  key_id: string;
+  badge_hash: string;
+  company: string;
+  leaf_index: number;
+  revoked: number;
+  registered_at: number;
 };

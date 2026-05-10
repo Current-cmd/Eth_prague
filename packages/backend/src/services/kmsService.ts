@@ -1,21 +1,6 @@
-/**
- * kmsService.ts — Space KMS (Orbitport) integration for ShieldPass badge credentials.
- *
- * Responsibility: securely associate a worker's badge (32-byte secret) with their
- * pseudonymNode (ENS namehash of their anonymous identity) by creating a dedicated
- * KMS key per badge claim and tagging it with the credential metadata.
- *
- * The KMS SDK does not expose a listKeys-by-tag query, so we maintain a lightweight
- * in-memory map (badge hex → record) for lookups within a server session.
- *
- * TODO: Replace the in-memory map with a persistent store (Postgres, Redis, or
- *       encrypted KV) so that lookups survive server restarts. The KMS key itself
- *       remains the durable cryptographic anchor — only the badge→keyId index needs
- *       to be persisted.
- */
-
 import { OrbitportSDK } from "@spacecomputer-io/orbitport-sdk-ts";
 import { keccak256, toBytes } from "viem";
+import { db, dbHelpers } from "./db.js";
 
 // ---------------------------------------------------------------------------
 // SDK initialisation
@@ -24,8 +9,6 @@ import { keccak256, toBytes } from "viem";
 const clientId = process.env.ORBITPORT_CLIENT_ID;
 const clientSecret = process.env.ORBITPORT_CLIENT_SECRET;
 
-// SDK is lazily initialised so the server can start even without credentials
-// (a startup warning is logged in server.ts).
 let _sdk: OrbitportSDK | null = null;
 
 function getSdk(): OrbitportSDK {
@@ -35,39 +18,18 @@ function getSdk(): OrbitportSDK {
         "ORBITPORT_CLIENT_ID and ORBITPORT_CLIENT_SECRET must be set to use KMS"
       );
     }
-    _sdk = new OrbitportSDK({
-      config: {
-        clientId,
-        clientSecret,
-      },
-    });
+    _sdk = new OrbitportSDK({ config: { clientId, clientSecret } });
   }
   return _sdk;
 }
-
-// ---------------------------------------------------------------------------
-// In-memory index: badge (0x…) → KMS record
-// TODO: persist this to a database between server restarts
-// ---------------------------------------------------------------------------
-
-interface BadgeRecord {
-  keyId: string;
-  pseudonymNode: `0x${string}`;
-  company: string;
-  leafIndex: number;
-}
-
-const badgeIndex = new Map<string, BadgeRecord>();
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 /**
- * Allocates a fresh KMS key for this worker and tags it with the badge
- * credential metadata so the credential can be recovered server-side.
- *
- * @returns the KMS keyId that acts as the durable server-side handle.
+ * Allocates a fresh KMS key for this worker, tags it with credential metadata,
+ * and persists the index to SQLite so it survives server restarts.
  */
 export async function registerBadge(
   badge: `0x${string}`,
@@ -77,13 +39,7 @@ export async function registerBadge(
 ): Promise<{ keyId: string }> {
   const sdk = getSdk();
 
-  // Each badge claim gets its own ETHEREUM key so we can later sign on behalf
-  // of that pseudonymous worker without the private key ever leaving KMS.
-  // The alias encodes enough context to be human-readable in the KMS console.
-  // Hash the badge secret before storing it as a tag — the raw badge must never
-  // appear in KMS console metadata since it is a membership-proving secret.
   const badgeHash = keccak256(toBytes(badge));
-
   const alias = `shieldpass-badge-${badgeHash.slice(2, 10)}-${Date.now()}`;
 
   const result = await sdk.kms.createKey({
@@ -102,31 +58,53 @@ export async function registerBadge(
 
   const keyId = result.data.KeyMetadata.KeyId;
 
-  badgeIndex.set(badgeHash, { keyId, pseudonymNode, company, leafIndex });
+  dbHelpers.insertBadgeCredential(pseudonymNode, keyId, badgeHash, company, leafIndex);
 
   return { keyId };
 }
 
 /**
- * Looks up the KMS record for a given badge.
- *
- * Currently queries the in-memory index only.
- * TODO: when the index is persisted, query the database here as primary source
- *       and fall back to a KMS listKeys-by-tag call once that API is available.
- *
- * @returns the record or null if not found (never throws on not-found).
+ * Looks up the KMS record for a worker by their pseudonymNode.
+ * This is the primary lookup used for revocation.
  */
-export async function lookupByBadge(
-  badge: `0x${string}`
-): Promise<{ keyId: string; pseudonymNode: `0x${string}`; company: string } | null> {
-  const badgeHash = keccak256(toBytes(badge));
-  const record = badgeIndex.get(badgeHash);
-  if (!record) {
-    return null;
-  }
-  return {
-    keyId: record.keyId,
-    pseudonymNode: record.pseudonymNode,
-    company: record.company,
-  };
+export async function lookupByPseudonymNode(
+  pseudonymNode: `0x${string}`
+): Promise<{ keyId: string; company: string; leafIndex: number } | null> {
+  const row = dbHelpers.getBadgeByPseudonymNode(pseudonymNode);
+  if (!row) return null;
+  return { keyId: row.key_id, company: row.company, leafIndex: row.leaf_index };
+}
+
+/**
+ * Revokes a badge credential by pseudonymNode.
+ * Marks the DB record as revoked and returns the leafIndex + company so the
+ * caller can rebuild the Merkle tree and rotate the on-chain root.
+ *
+ * Note: the Orbitport SDK has no deleteKey — the KMS key becomes a dangling
+ * reference, but the employee is cryptographically locked out the moment the
+ * on-chain root no longer includes their leaf.
+ */
+export async function revokeBadge(
+  pseudonymNode: `0x${string}`
+): Promise<{ keyId: string; company: string; leafIndex: number } | null> {
+  const row = dbHelpers.getBadgeByPseudonymNode(pseudonymNode);
+  if (!row) return null;
+
+  dbHelpers.revokeBadgeCredential(pseudonymNode);
+
+  return { keyId: row.key_id, company: row.company, leafIndex: row.leaf_index };
+}
+
+/**
+ * Returns all active (non-revoked) badge records for a company, ordered by
+ * leafIndex. Use this to rebuild the Merkle tree after a revocation.
+ */
+export function listActiveBadges(
+  company: string
+): { pseudonymNode: string; leafIndex: number; keyId: string }[] {
+  return dbHelpers.listActiveBadges(company).map((r) => ({
+    pseudonymNode: r.pseudonym_node,
+    leafIndex: r.leaf_index,
+    keyId: r.key_id,
+  }));
 }
