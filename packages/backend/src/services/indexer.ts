@@ -1,7 +1,7 @@
 import { createPublicClient, http } from "viem";
 import { sepolia } from "viem/chains";
 import { SEPOLIA_ADDRESSES } from "@shieldpass/shared/chain";
-import { dbHelpers } from "./db.js";
+import { db, dbHelpers } from "./db.js";
 
 const client = createPublicClient({
   chain: sepolia,
@@ -38,6 +38,26 @@ const BADGE_TREE_MANAGER_ABI = [
   },
 ] as const;
 
+const IPFS_GATEWAYS = [
+  "https://w3s.link/ipfs/",
+  "https://gateway.pinata.cloud/ipfs/",
+  "https://cloudflare-ipfs.com/ipfs/",
+  "https://ipfs.io/ipfs/",
+];
+
+async function fetchIpfsJson(cid: string): Promise<unknown | null> {
+  for (const gw of IPFS_GATEWAYS) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(`${gw}${cid}`, { signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) return await res.json();
+    } catch { /* try next gateway */ }
+  }
+  return null;
+}
+
 // First block of the ReportRegistry deployment — backfill starts here on a fresh DB
 const DEPLOY_BLOCK = 10817304;
 // Max block range per getLogs call — keeps us within public RPC limits
@@ -61,6 +81,7 @@ export async function startIndexer() {
   lastIndexedBlock = saved ? parseInt(saved, 10) : DEPLOY_BLOCK - 1;
 
   await indexLogs();
+  await backfillPayloads();
 
   client.watchContractEvent({
     address: SEPOLIA_ADDRESSES.ReportRegistry,
@@ -136,7 +157,7 @@ async function processReportSubmitted(log: ReportLog) {
   const blockNum = Number(blockBig);
   const submittedAt = await getBlockTimestamp(blockBig);
 
-  dbHelpers.insertReport({
+  const inserted = dbHelpers.insertReport({
     report_hash: reportHash,
     ens_node: ensNode,
     nullifier,
@@ -149,10 +170,41 @@ async function processReportSubmitted(log: ReportLog) {
     block_number: blockNum,
   });
 
+  // Fetch payload from IPFS on first insert (skip if already present)
+  if (inserted.changes > 0) {
+    try {
+      const payload = await fetchIpfsJson(cid);
+      if (payload) {
+        dbHelpers.updateReportPayload(reportHash, JSON.stringify(payload));
+      }
+    } catch { /* non-fatal: payload can be fetched later */ }
+  }
+
   if (blockNum > lastIndexedBlock) {
     lastIndexedBlock = blockNum;
     dbHelpers.setMeta("last_indexed_block", String(blockNum));
   }
+}
+
+async function backfillPayloads() {
+  const rows = db.prepare(
+    "SELECT report_hash, cid FROM reports WHERE payload_json IS NULL"
+  ).all() as { report_hash: string; cid: string }[];
+
+  if (rows.length === 0) return;
+  console.log(`[Indexer] Fetching IPFS payloads for ${rows.length} report(s)…`);
+
+  let ok = 0;
+  for (const row of rows) {
+    try {
+      const payload = await fetchIpfsJson(row.cid);
+      if (payload) {
+        dbHelpers.updateReportPayload(row.report_hash, JSON.stringify(payload));
+        ok++;
+      }
+    } catch { /* non-fatal */ }
+  }
+  console.log(`[Indexer] IPFS backfill complete — ${ok}/${rows.length} payloads fetched`);
 }
 
 async function processRootRotated(log: RootLog) {

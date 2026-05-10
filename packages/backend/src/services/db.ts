@@ -82,6 +82,9 @@ db.exec(`
   );
 `);
 
+// Non-destructive migration: add payload_json column if it doesn't exist yet
+try { db.exec("ALTER TABLE reports ADD COLUMN payload_json TEXT"); } catch { /* already exists */ }
+
 // Helper functions
 export const dbHelpers = {
   insertCompany: (ensNode: string, ensName: string, admin: string, registeredAt: number) => {
@@ -150,6 +153,11 @@ export const dbHelpers = {
   getReport: (reportHash: string) => {
     const stmt = db.prepare("SELECT * FROM reports WHERE report_hash = ?");
     return stmt.get(reportHash) as ReportRow | undefined;
+  },
+
+  updateReportPayload: (reportHash: string, payloadJson: string) => {
+    const stmt = db.prepare("UPDATE reports SET payload_json = ? WHERE report_hash = ?");
+    return stmt.run(payloadJson, reportHash);
   },
 
   listReports: (filters: {
@@ -268,6 +276,7 @@ export type ReportRow = {
   tx_hash: string;
   block_number: number;
   context_pack_cid?: string | null;
+  payload_json?: string | null;
 };
 
 export type ProofJobRow = {

@@ -84,20 +84,27 @@ export const reportsRoute: FastifyPluginAsync = async (app) => {
         } catch { /* table may not exist on old DB */ }
       }
 
-      const items: Report[] = result.items.map((row) => ({
-        reportHash: row.report_hash as `0x${string}`,
-        ensNode: row.ens_node as `0x${string}`,
-        nullifier: row.nullifier as `0x${string}`,
-        rootUsed: row.root_used as `0x${string}`,
-        cid: row.cid,
-        category: CATEGORIES[row.category] as components["schemas"]["ReportCategory"],
-        submittedAt: row.submitted_at,
-        pseudonymNode: row.pseudonym_node as `0x${string}`,
-        txHash: row.tx_hash as `0x${string}`,
-        blockNumber: row.block_number,
-        contextPackCid: row.context_pack_cid ?? null,
-        credibilityScore: invMap.has(row.report_hash) ? invMap.get(row.report_hash) : null,
-      }));
+      const items: Report[] = result.items.map((row) => {
+        let payload: components["schemas"]["ReportPayload"] | undefined;
+        if (row.payload_json) {
+          try { payload = JSON.parse(row.payload_json); } catch { /* ignore */ }
+        }
+        return {
+          reportHash: row.report_hash as `0x${string}`,
+          ensNode: row.ens_node as `0x${string}`,
+          nullifier: row.nullifier as `0x${string}`,
+          rootUsed: row.root_used as `0x${string}`,
+          cid: row.cid,
+          category: CATEGORIES[row.category] as components["schemas"]["ReportCategory"],
+          submittedAt: row.submitted_at,
+          pseudonymNode: row.pseudonym_node as `0x${string}`,
+          txHash: row.tx_hash as `0x${string}`,
+          blockNumber: row.block_number,
+          contextPackCid: row.context_pack_cid ?? null,
+          credibilityScore: invMap.has(row.report_hash) ? invMap.get(row.report_hash) : null,
+          payload,
+        };
+      });
 
       return {
         items,
@@ -144,6 +151,11 @@ export const reportsRoute: FastifyPluginAsync = async (app) => {
         } catch { /* ignore malformed JSON */ }
       }
 
+      let payload: components["schemas"]["ReportPayload"] | undefined;
+      if (row.payload_json) {
+        try { payload = JSON.parse(row.payload_json); } catch { /* ignore */ }
+      }
+
       const report: Report = {
         reportHash: row.report_hash as `0x${string}`,
         ensNode: row.ens_node as `0x${string}`,
@@ -158,6 +170,7 @@ export const reportsRoute: FastifyPluginAsync = async (app) => {
         contextPackCid: row.context_pack_cid ?? null,
         credibilityScore,
         dossier,
+        payload,
       };
 
       return report;
