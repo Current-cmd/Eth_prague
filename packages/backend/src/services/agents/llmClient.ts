@@ -82,37 +82,54 @@ async function callGlm(
   opts: StructuredCompletionOptions,
   systemOverride: string
 ): Promise<GlmCallResult> {
-  const response = await client.chat.completions.create({
-    model: GLM_MODEL,
-    max_tokens: opts.maxTokens ?? 1024,
-    messages: [
-      { role: "system", content: systemOverride },
-      { role: "user", content: opts.user },
-    ],
-    tools: [
-      {
-        type: "function",
-        function: {
-          name: opts.tool.name,
-          description: opts.tool.description,
-          parameters: opts.tool.parameters,
-        },
-      },
-    ],
-    tool_choice: "auto", // GLM only supports "auto"
-  });
+  const MAX_ATTEMPTS = 3;
+  let lastErr: unknown;
 
-  const choice = response.choices[0];
-  console.debug(
-    `[llmClient] GLM finish_reason=${choice?.finish_reason} tool_calls=${choice?.message?.tool_calls?.length ?? 0} content_len=${choice?.message?.content?.length ?? 0}`
-  );
-  const toolCall = choice?.message?.tool_calls?.[0];
-  const args =
-    toolCall && "function" in toolCall ? toolCall.function.arguments : undefined;
-  return {
-    toolArguments: args,
-    content: choice?.message?.content,
-  };
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await client.chat.completions.create({
+        model: GLM_MODEL,
+        max_tokens: opts.maxTokens ?? 1024,
+        messages: [
+          { role: "system", content: systemOverride },
+          { role: "user", content: opts.user },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: opts.tool.name,
+              description: opts.tool.description,
+              parameters: opts.tool.parameters,
+            },
+          },
+        ],
+        tool_choice: "auto",
+      });
+
+      const choice = response.choices[0];
+      console.debug(
+        `[llmClient] GLM attempt=${attempt} finish_reason=${choice?.finish_reason} tool_calls=${choice?.message?.tool_calls?.length ?? 0} content_len=${choice?.message?.content?.length ?? 0}`
+      );
+      const toolCall = choice?.message?.tool_calls?.[0];
+      const args =
+        toolCall && "function" in toolCall ? toolCall.function.arguments : undefined;
+      return {
+        toolArguments: args,
+        content: choice?.message?.content,
+      };
+    } catch (err: unknown) {
+      lastErr = err;
+      const status = (err as { status?: number })?.status;
+      const isRetryable = !status || status >= 500;
+      if (!isRetryable || attempt === MAX_ATTEMPTS) throw err;
+      const delay = 1000 * attempt;
+      console.warn(`[llmClient] GLM attempt ${attempt} failed (${status ?? "network"}), retrying in ${delay}ms…`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+
+  throw lastErr;
 }
 
 function extractJsonFromContent(content: string): Record<string, unknown> {

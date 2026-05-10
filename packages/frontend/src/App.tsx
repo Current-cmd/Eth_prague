@@ -11,10 +11,9 @@ import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
 const TABS = [
-  { to: "/",            label: "Public Registry",     short: "Registry"    },
-  { to: "/submit",      label: "Submit a Disclosure", short: "Submit"      },
-  { to: "/investigate", label: "ESG Investigate",     short: "Investigate" },
-  { to: "/onboarding",  label: "Worker Onboarding",   short: "Onboard"     },
+  { to: "/",            label: "Public Registry",     short: "Registry" },
+  { to: "/submit",      label: "Submit a Disclosure", short: "Submit"   },
+  { to: "/onboarding",  label: "Worker Onboarding",   short: "Onboard"  },
   { to: "/admin/acme.shieldpass-demo.eth", label: "Admin Console", short: "Admin" },
 ];
 

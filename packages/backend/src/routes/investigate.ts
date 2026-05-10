@@ -4,6 +4,7 @@ import { runSynthesis } from "../services/agents/synthesisAgent.js";
 import { newsAgent } from "../services/agents/newsAgent.js";
 import { webAgent } from "../services/agents/webAgent.js";
 import { payForAgentRun, getPool, resetPool } from "../services/payments/mockPayment.js";
+import { dbHelpers } from "../services/db.js";
 import type {
   WhistleblowerReport,
   OrchestratorPlan,
@@ -20,6 +21,7 @@ import type {
 interface InvestigationState {
   id: string;
   report: WhistleblowerReport;
+  reportHash?: string;
   status: InvestigationStatus;
   log: LogEvent[];
   plan?: OrchestratorPlan;
@@ -86,9 +88,23 @@ async function runPipeline(state: InvestigationState): Promise<void> {
       emit
     );
     state.dossier = dossier;
-
     state.status = "complete";
     emit({ type: "complete", message: "Investigation complete." });
+
+    // Persist dossier to DB so it can be retrieved by report hash
+    if (state.reportHash) {
+      try {
+        dbHelpers.insertInvestigationResult(
+          state.reportHash,
+          JSON.stringify(dossier),
+          dossier.credibilityScore,
+          Math.floor(Date.now() / 1000)
+        );
+      } catch (err) {
+        // Non-fatal — investigation still succeeded
+        console.error("[investigate] Failed to persist dossier:", err);
+      }
+    }
   } catch (err) {
     state.status = "error";
     state.error = err instanceof Error ? err.message : String(err);
@@ -105,7 +121,7 @@ async function runPipeline(state: InvestigationState): Promise<void> {
 export const investigateRoute: FastifyPluginAsync = async (app) => {
   // POST /v1/investigate — start a new investigation
   app.post<{
-    Body: { text: string; company?: string };
+    Body: { text: string; company?: string; reportHash?: string };
     Reply: { id: string } | { code: string; message: string };
   }>(
     "/investigate",
@@ -117,17 +133,19 @@ export const investigateRoute: FastifyPluginAsync = async (app) => {
           properties: {
             text: { type: "string", minLength: 10, maxLength: 5000 },
             company: { type: "string", maxLength: 200 },
+            reportHash: { type: "string", maxLength: 200 },
           },
         },
       },
     },
     async (req, reply) => {
-      const { text, company } = req.body;
+      const { text, company, reportHash } = req.body;
       const id = crypto.randomUUID();
 
       const state: InvestigationState = {
         id,
         report: { text, company },
+        reportHash,
         status: "pending",
         log: [{ timestamp: ts(), type: "info", message: "Investigation created." }],
         scraperResults: [],

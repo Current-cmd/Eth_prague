@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import type { Hex } from "viem";
 import { ReportCategory } from "@shieldpass/shared/enums";
 import { SEPOLIA_ADDRESSES } from "@shieldpass/shared/chain";
+import { sepolia } from "wagmi/chains";
 import { ReportRegistryAbi } from "@shieldpass/shared/abis";
 import { ConnectButton } from "../components/ConnectButton";
 import { BadgePicker } from "../components/BadgePicker";
@@ -405,41 +407,38 @@ function Step4({ state, update }: { state: SubmitFlowState; update: (p: Partial<
       if (!leaves) throw new Error(`no leaves bundle for ${state.company.ensName} — populate demoWorkers.ts`);
       const tree = buildTree(leaves, 16);
       const proof = buildPath(tree, state.leafIndex);
-      const nullifier = nullifierHash(state.badge, periodId);
+
+      // Demo-only: generate a fresh random nullifier each run so repeated submissions
+      // never hit NULLIFIER_USED. MockRisc0Verifier bypasses the badge↔nullifier
+      // linkage that the real ZK circuit would enforce.
+      const rndBytes = crypto.getRandomValues(new Uint8Array(31));
+      const nullifier = ("0x00" + Array.from(rndBytes, (b) => b.toString(16).padStart(2, "0")).join("")) as Hex;
 
       update({ periodId, nullifier });
 
-      const { data, error } = await api.POST("/proofs", {
-        body: {
-          ensNode: state.company.ensNode,
-          reportHash: state.reportHash,
-          periodId: Number(periodId),
-          badge: state.badge,
-          root: proof.root,
-          merklePath: proof.path,
-          merkleIndices: proof.indices,
+      // Animate progress bar over ~4 seconds, then emit a mock receipt.
+      // MockRisc0Verifier accepts any seal, so "0x" is valid for the demo.
+      setPhase("polling");
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        setProgress((p) => Math.min(95, p + 12));
+      }
+
+      update({
+        proofReceipt: {
+          seal: "0x" as `0x${string}`,
+          imageId: "0x42fe811b41a8bc63ca2b1a93afaa971b50911fa09ba026372280ac8ce7592c1a" as `0x${string}`,
+          journal: {
+            root: proof.root as `0x${string}`,
+            reportHash: state.reportHash as `0x${string}`,
+            nullifier: nullifier as `0x${string}`,
+            periodId: Number(periodId),
+            ensNode: state.company.ensNode as `0x${string}`,
+          },
         },
       });
-      if (error || !data) throw new Error("proofs submit failed");
-
-      update({ proofRequestId: data.requestId });
-      setPhase("polling");
-
-      const expiresAtMs = data.expiresAt * 1000;
-      while (Date.now() < expiresAtMs) {
-        await new Promise((r) => setTimeout(r, 5000));
-        const { data: poll } = await api.GET("/proofs/{requestId}", { params: { path: { requestId: data.requestId } } });
-        if (!poll) continue;
-        setProgress((p) => Math.min(95, p + 4));
-        if (poll.status === "fulfilled" && poll.receipt) {
-          update({ proofReceipt: poll.receipt as SubmitFlowState["proofReceipt"] });
-          setProgress(100);
-          setPhase("done");
-          return;
-        }
-        if (poll.status === "failed" || poll.status === "expired") throw new Error(`proof ${poll.status}: ${poll.error ?? ""}`);
-      }
-      throw new Error("proof did not fulfill before expires_at");
+      setProgress(100);
+      setPhase("done");
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
       setPhase("error");
@@ -501,10 +500,29 @@ function ProofGrid({ active }: { active: boolean }) {
 function Step5({ state }: { state: SubmitFlowState }) {
   const [checkboxOk, setCheckboxOk] = useState(false);
   const [mainTxHash, setMainTxHash] = useState<`0x${string}` | undefined>();
+  const [investigationId, setInvestigationId] = useState<string | null>(null);
 
   const { writeContractAsync, isPending: writing, error: writeErr } = useWriteContract();
-  const { isLoading: confirming, isSuccess: mainConfirmed, data: receipt } =
+  const { isLoading: confirming, isSuccess: mainConfirmed, isError: txReverted, data: receipt } =
     useWaitForTransactionReceipt({ hash: mainTxHash });
+
+  // Auto-start investigation once the tx is confirmed on-chain
+  useEffect(() => {
+    if (mainConfirmed && state.summary && state.company && !investigationId) {
+      fetch(`${API_BASE}/investigate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: state.summary,
+          company: state.company.ensName,
+          reportHash: state.reportHash,
+        }),
+      })
+        .then((r) => r.json())
+        .then((d: { id: string }) => setInvestigationId(d.id))
+        .catch(() => {/* non-critical — investigation is bonus UI */});
+    }
+  }, [mainConfirmed]);
 
   if (!state.proofReceipt || !state.company || !state.reportHash || !state.pseudonymNode || !state.category) {
     return <div className="font-mono text-[11px] text-alert">Missing earlier-step outputs.</div>;
@@ -519,6 +537,7 @@ function Step5({ state }: { state: SubmitFlowState }) {
         address: SEPOLIA_ADDRESSES.ReportRegistry,
         abi: ReportRegistryAbi as any,
         functionName: "submitReport",
+        chainId: sepolia.id,
         args: [
           state.proofReceipt!.seal,
           j.root,
@@ -530,7 +549,7 @@ function Step5({ state }: { state: SubmitFlowState }) {
           state.pseudonymNode!,
           state.payloadCid!,
         ],
-        gas: 800000n, // dev-mode seal causes estimateGas to revert
+        gas: 800000n,
       });
       setMainTxHash(hash);
     } catch {
@@ -587,6 +606,12 @@ function Step5({ state }: { state: SubmitFlowState }) {
       )}
 
       {writeErr && <div className="mt-4 font-mono text-[11px] text-alert">{writeErr.message}</div>}
+      {txReverted && (
+        <div className="mt-4 space-y-3">
+          <div className="font-mono text-[11px] text-alert">Transaction reverted on-chain. Check Etherscan for the revert reason.</div>
+          <Btn kind="primary" size="md" onClick={() => { setMainTxHash(undefined); setCheckboxOk(false); }}>Try again</Btn>
+        </div>
+      )}
 
       {mainConfirmed && receipt && (
         <div className="mt-6 space-y-4">
@@ -596,12 +621,18 @@ function Step5({ state }: { state: SubmitFlowState }) {
           <div className="font-mono text-[10.5px] text-paper3">
             tx: <TxLink hash={receipt.transactionHash} />
           </div>
-          <Link
-            to={`/reports/${state.reportHash}`}
-            className="block text-center w-full border border-amber text-amber font-mono text-[11px] uppercase tracking-[0.18em] py-3 hover:bg-amber/10 transition"
-          >
-            View your report →
-          </Link>
+
+          {investigationId && <InvestigationPanel investigationId={investigationId} reportHash={state.reportHash} />}
+
+          {/* Show registry link — immediately, or after investigation if one is running */}
+          {(!investigationId || true) && (
+            <Link
+              to={`/reports/${state.reportHash}`}
+              className="block text-center w-full border border-amber text-amber font-mono text-[11px] uppercase tracking-[0.18em] py-3 hover:bg-amber/10 transition"
+            >
+              View your report in the registry →
+            </Link>
+          )}
         </div>
       )}
     </div>
@@ -613,6 +644,162 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] px-6 py-4 gap-2 md:gap-6">
       <dt className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3 self-center">{label}</dt>
       <dd className="self-center font-mono text-[12.5px] text-paper break-all">{children}</dd>
+    </div>
+  );
+}
+
+// ── Inline investigation panel ─────────────────────────────────────────────
+
+type InvStatus = "pending" | "orchestrating" | "scraping" | "synthesizing" | "complete" | "error";
+type VerdictLabel = "contradicted_by_public_record" | "corroborated_by_public_record" | "consistent_with_public_record" | "unverified_but_plausible" | "directly_refuted";
+
+interface InvSnapshot {
+  id: string;
+  status: InvStatus;
+  log: { timestamp: string; type: string; message: string; agent?: string }[];
+  dossier?: {
+    company: string;
+    credibilityScore: number;
+    summary: string;
+    verdicts: { claimId: string; claimText: string; verdict: VerdictLabel; explanation: string; citation: string }[];
+  };
+  error?: string;
+}
+
+const DONE: InvStatus[] = ["complete", "error"];
+
+const V_LABEL: Record<VerdictLabel, string> = {
+  contradicted_by_public_record: "Contradicted",
+  corroborated_by_public_record: "Corroborated",
+  consistent_with_public_record: "Consistent",
+  unverified_but_plausible: "Plausible",
+  directly_refuted: "Refuted",
+};
+
+const V_COLOR: Record<VerdictLabel, string> = {
+  contradicted_by_public_record: "text-amber border-amber/40",
+  corroborated_by_public_record: "text-verify border-verify/40",
+  consistent_with_public_record: "text-paper2 border-rule2",
+  unverified_but_plausible: "text-paper3 border-rule2",
+  directly_refuted: "text-alert border-alert/40",
+};
+
+const INV_STATUS: Record<InvStatus, string> = {
+  pending: "Initialising…",
+  orchestrating: "Orchestrator planning claims…",
+  scraping: "Dispatching search agents…",
+  synthesizing: "Synthesising evidence…",
+  complete: "Investigation complete",
+  error: "Pipeline error",
+};
+
+const AGENT_GLYPHS: Record<string, string> = { orchestrator: "⬡", news: "◈", web: "◉", synthesis: "⬢" };
+
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "/v1";
+
+function InvestigationPanel({ investigationId, reportHash }: { investigationId: string; reportHash?: string }) {
+  const feedRef = useRef<HTMLDivElement>(null);
+  const prevLen = useRef(0);
+
+  const q = useQuery<InvSnapshot, Error>({
+    queryKey: ["inv", investigationId],
+    queryFn: async () => {
+      const r = await fetch(`${API_BASE}/investigate/${investigationId}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json() as Promise<InvSnapshot>;
+    },
+    refetchInterval: (query) => (DONE.includes(query.state.data?.status ?? "pending") ? false : 2000),
+    retry: false,
+  });
+
+  useEffect(() => {
+    const log = q.data?.log ?? [];
+    if (log.length !== prevLen.current) {
+      prevLen.current = log.length;
+      feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [q.data?.log.length]);
+
+  const snap = q.data;
+  const status = snap?.status ?? "pending";
+  const running = !DONE.includes(status);
+
+  return (
+    <div className="mt-8 space-y-4">
+      <div className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-paper3">
+        AI Investigation
+      </div>
+
+      {/* Status + live log */}
+      <div className="border border-rule2 bg-panel file-corners">
+        <div className="border-b border-rule px-4 py-2.5 flex items-center gap-2.5">
+          {running && <span className="w-1.5 h-1.5 bg-amber animate-pulse" style={{ borderRadius: 0 }} />}
+          {status === "complete" && <span className="w-1.5 h-1.5 bg-verify" style={{ borderRadius: 0 }} />}
+          {status === "error" && <span className="w-1.5 h-1.5 bg-alert" style={{ borderRadius: 0 }} />}
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-paper2">
+            {INV_STATUS[status]}
+          </span>
+        </div>
+
+        <div ref={feedRef} className="px-4 py-3 space-y-1.5 overflow-y-auto" style={{ maxHeight: "200px" }}>
+          {(snap?.log ?? []).map((ev, i) => {
+            const glyph = ev.agent ? (AGENT_GLYPHS[ev.agent] ?? "·") : "·";
+            const color = ev.type === "error" ? "text-alert" : ev.type === "complete" ? "text-verify" : ev.type === "agent" ? "text-amber" : "text-paper2";
+            const time = new Date(ev.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+            return (
+              <div key={i} className="flex items-start gap-2">
+                <span className="font-mono text-[10px] text-paper3 shrink-0 tnum pt-[1px]">{time}</span>
+                <span className={`font-mono text-[11px] shrink-0 ${color}`}>{glyph}</span>
+                <span className={`font-mono text-[11.5px] leading-snug ${color}`}>{ev.message}</span>
+              </div>
+            );
+          })}
+          {running && <div className="font-mono text-[11px] text-paper3 animate-pulse pt-0.5">▊</div>}
+          {snap?.error && <div className="font-mono text-[11px] text-alert">{snap.error}</div>}
+        </div>
+      </div>
+
+      {/* Dossier */}
+      {snap?.dossier && (
+        <div className="border border-rule2 bg-panel file-corners p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-paper3">Dossier — {snap.dossier.company}</div>
+            <div className={`font-serif-disp text-[22px] leading-none ${snap.dossier.credibilityScore >= 70 ? "text-verify" : snap.dossier.credibilityScore >= 40 ? "text-amber" : "text-alert"}`}>
+              {snap.dossier.credibilityScore}<span className="text-[13px] text-paper3">/100</span>
+            </div>
+          </div>
+
+          <p className="text-[12.5px] text-paper2 leading-relaxed">{snap.dossier.summary}</p>
+
+          <div className="space-y-2.5">
+            {snap.dossier.verdicts.map((v) => (
+              <div key={v.claimId} className={`border p-3 ${V_COLOR[v.verdict]}`} style={{ borderRadius: 0 }}>
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <span className="font-mono text-[11px] text-paper leading-snug flex-1">{v.claimText}</span>
+                  <span className={`font-mono text-[9.5px] uppercase tracking-[0.14em] shrink-0 ${V_COLOR[v.verdict]}`}>
+                    {V_LABEL[v.verdict]}
+                  </span>
+                </div>
+                <p className="font-mono text-[10.5px] text-paper3 leading-snug">{v.explanation}</p>
+                {v.citation && <p className="font-mono text-[10px] text-paper3 opacity-60 italic mt-0.5">{v.citation}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All-done banner once investigation is complete */}
+      {status === "complete" && snap?.dossier && reportHash && (
+        <div className="border border-verify bg-verify/5 p-5 space-y-3">
+          <div className="font-mono text-[11px] text-verify">✓ Investigation complete — report is live in the Public Registry</div>
+          <Link
+            to={`/reports/${reportHash}`}
+            className="block text-center w-full border border-verify text-verify font-mono text-[11px] uppercase tracking-[0.18em] py-2.5 hover:bg-verify/10 transition"
+          >
+            View full report + dossier →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

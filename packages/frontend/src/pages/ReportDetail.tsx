@@ -7,6 +7,31 @@ import { ProofStatus } from "../components/ProofStatus";
 import { CATEGORY_FIELDS } from "../lib/categoryFields";
 import type { ReportCategory } from "@shieldpass/shared/enums";
 
+type VerdictLabel = "contradicted_by_public_record" | "corroborated_by_public_record" | "consistent_with_public_record" | "unverified_but_plausible" | "directly_refuted";
+
+interface Dossier {
+  company: string;
+  credibilityScore: number;
+  summary: string;
+  verdicts: { claimId: string; claimText: string; verdict: VerdictLabel; explanation: string; citation: string }[];
+}
+
+const V_LABEL: Record<VerdictLabel, string> = {
+  contradicted_by_public_record: "Contradicted",
+  corroborated_by_public_record: "Corroborated",
+  consistent_with_public_record: "Consistent",
+  unverified_but_plausible: "Plausible",
+  directly_refuted: "Refuted",
+};
+
+const V_COLOR: Record<VerdictLabel, string> = {
+  contradicted_by_public_record: "text-amber border-amber/40",
+  corroborated_by_public_record: "text-verify border-verify/40",
+  consistent_with_public_record: "text-paper2 border-rule2",
+  unverified_but_plausible: "text-paper3 border-rule2",
+  directly_refuted: "text-alert border-alert/40",
+};
+
 export default function ReportDetail() {
   const { reportHash } = useParams<{ reportHash: string }>();
 
@@ -27,6 +52,8 @@ export default function ReportDetail() {
   }
   const r = q.data;
   const fields = r.payload?.category ? CATEGORY_FIELDS[r.payload.category as ReportCategory] : [];
+  const dossier = (r as any).dossier as Dossier | null | undefined;
+  const credibilityScore = (r as any).credibilityScore as number | null | undefined;
 
   return (
     <div className="page-enter max-w-[1100px] mx-auto px-6 lg:px-10 py-10">
@@ -109,6 +136,35 @@ export default function ReportDetail() {
           </div>
         </aside>
       </div>
+
+      {/* AI Investigation Dossier */}
+      {dossier && (
+        <div className="mt-6 border border-rule2 bg-panel file-corners p-6 space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-paper3">AI Investigation Dossier</div>
+            <div className={`font-serif-disp text-[28px] leading-none ${(credibilityScore ?? 0) >= 70 ? "text-verify" : (credibilityScore ?? 0) >= 40 ? "text-amber" : "text-alert"}`}>
+              {credibilityScore}<span className="font-mono text-[13px] text-paper3">/100</span>
+            </div>
+          </div>
+
+          <p className="text-[13.5px] text-paper2 leading-relaxed border-b border-rule pb-5">{dossier.summary}</p>
+
+          <div className="space-y-3">
+            {dossier.verdicts.map((v) => (
+              <div key={v.claimId} className={`border p-4 ${V_COLOR[v.verdict]}`} style={{ borderRadius: 0 }}>
+                <div className="flex items-start justify-between gap-3 mb-1.5">
+                  <span className="font-mono text-[11.5px] text-paper leading-snug flex-1">{v.claimText}</span>
+                  <span className={`font-mono text-[9.5px] uppercase tracking-[0.14em] shrink-0 border px-2 py-0.5 ${V_COLOR[v.verdict]}`}>
+                    {V_LABEL[v.verdict]}
+                  </span>
+                </div>
+                <p className="font-mono text-[11px] text-paper3 leading-snug">{v.explanation}</p>
+                {v.citation && <p className="font-mono text-[10px] text-paper3 opacity-60 italic mt-1">{v.citation}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

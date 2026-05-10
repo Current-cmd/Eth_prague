@@ -132,7 +132,8 @@ export async function runSynthesis(
 ): Promise<Dossier> {
   emit({ type: "agent", message: "Synthesis agent compiling evidence…", agent: "synthesis" });
 
-  const claimsBlock = plan.claims.map((c) => `  [${c.id}] ${c.text}`).join("\n");
+  const claims = Array.isArray(plan.claims) ? plan.claims : [];
+  const claimsBlock = claims.map((c) => `  [${c.id}] ${c.text}`).join("\n");
 
   const user = `# Whistleblower Report
 
@@ -160,6 +161,8 @@ Produce a verdict for each claim using the taxonomy in your instructions. Cite t
     credibilityScore: number;
     summary: string;
   };
+
+  result.verdicts = Array.isArray(result.verdicts) ? result.verdicts : [];
 
   emit({ type: "info", message: `Credibility score: ${result.credibilityScore}/100` });
 
